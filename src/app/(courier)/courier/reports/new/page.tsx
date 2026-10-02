@@ -38,12 +38,12 @@ export default async function CourierNewReportPage() {
       <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FilePlus className="h-5 w-5 text-orange-400" />
+            <FilePlus className="h-5 w-5 text-red-400" />
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
               Input Laporan Operasional Harian
             </h1>
           </div>
-          <span className="text-xs font-semibold text-orange-300">
+          <span className="text-xs font-semibold text-red-300">
             {todayFormatted} (WITA)
           </span>
         </div>

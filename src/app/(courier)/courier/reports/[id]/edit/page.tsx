@@ -78,7 +78,7 @@ export default async function CourierEditReportPage({
       {/* Page Header */}
       <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
         <div className="flex items-center gap-2">
-          <Edit3 className="h-5 w-5 text-orange-400" />
+          <Edit3 className="h-5 w-5 text-red-400" />
           <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
             Perbarui Laporan Operasional
           </h1>

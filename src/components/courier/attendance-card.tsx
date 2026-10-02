@@ -84,12 +84,12 @@ export function AttendanceCard({
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-400" />
+            <Clock className="h-5 w-5 text-red-400" />
             <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
               Presensi Mandiri Lapangan
             </span>
           </div>
-          <span className="text-xs font-semibold text-orange-300">
+          <span className="text-xs font-semibold text-red-300">
             Zona WITA (UTC+8)
           </span>
         </div>
@@ -194,7 +194,7 @@ export function AttendanceCard({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Contoh: Kondisi fisik dan sepeda motor prima, siap rute Polewali."
-                className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none"
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
                 disabled={isPending}
               />
             </div>
@@ -203,7 +203,7 @@ export function AttendanceCard({
               type="button"
               onClick={handleClockIn}
               disabled={isPending}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-orange-700 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-red-700 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {isPending ? (
                 <>

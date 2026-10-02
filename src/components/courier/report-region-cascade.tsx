@@ -204,7 +204,7 @@ export function ReportRegionCascade({
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
         <div className="flex items-center gap-1.5">
-          <MapPin className="h-4 w-4 text-orange-600" />
+          <MapPin className="h-4 w-4 text-red-600" />
           <span className="text-xs font-bold text-slate-900">{label}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export function ReportRegionCascade({
             value={provinceId}
             onChange={handleProvinceChange}
             disabled={disabled}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
             <option value="">Pilih Provinsi...</option>
             {provinces.map((p) => (
@@ -291,14 +291,14 @@ export function ReportRegionCascade({
           <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
             <span>Kabupaten / Kota</span>
             {loadingLevel === "regency" && (
-              <Loader2 className="h-3 w-3 animate-spin text-orange-600" />
+              <Loader2 className="h-3 w-3 animate-spin text-red-600" />
             )}
           </label>
           <select
             value={regencyId}
             onChange={handleRegencyChange}
             disabled={disabled || !provinceId || loadingLevel === "regency"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
             <option value="">
               {!provinceId ? "Pilih Provinsi dulu" : "Pilih Kab/Kota..."}
@@ -316,14 +316,14 @@ export function ReportRegionCascade({
           <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
             <span>Kecamatan</span>
             {loadingLevel === "district" && (
-              <Loader2 className="h-3 w-3 animate-spin text-orange-600" />
+              <Loader2 className="h-3 w-3 animate-spin text-red-600" />
             )}
           </label>
           <select
             value={districtId}
             onChange={handleDistrictChange}
             disabled={disabled || !regencyId || loadingLevel === "district"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
             <option value="">
               {!regencyId ? "Pilih Kab/Kota dulu" : "Pilih Kecamatan..."}
@@ -341,14 +341,14 @@ export function ReportRegionCascade({
           <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
             <span>Desa / Kelurahan</span>
             {loadingLevel === "village" && (
-              <Loader2 className="h-3 w-3 animate-spin text-orange-600" />
+              <Loader2 className="h-3 w-3 animate-spin text-red-600" />
             )}
           </label>
           <select
             value={villageId}
             onChange={handleVillageChange}
             disabled={disabled || !districtId || loadingLevel === "village"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
             <option value="">
               {!districtId ? "Pilih Kecamatan dulu" : "Pilih Desa/Kelurahan..."}

@@ -54,7 +54,7 @@ export default async function CourierHistoryPage({
 
         <Link
           href="/courier/reports/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-700 transition-colors shadow-2xs"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-2xs"
         >
           <FilePlus className="h-3.5 w-3.5" />
           <span>Input Laporan Baru</span>
@@ -65,12 +65,12 @@ export default async function CourierHistoryPage({
       <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-orange-400" />
+            <History className="h-5 w-5 text-red-400" />
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
               Riwayat Operasional Saya
             </h1>
           </div>
-          <span className="text-xs font-bold text-orange-300">
+          <span className="text-xs font-bold text-red-300">
             {totalReports} Laporan
           </span>
         </div>
@@ -96,7 +96,7 @@ export default async function CourierHistoryPage({
         <Card className="border-slate-200 shadow-2xs">
           <CardContent className="p-3.5 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider flex items-center gap-1">
-              <Package className="h-3 w-3 text-orange-600" />
+              <Package className="h-3 w-3 text-red-600" />
               <span>Order</span>
             </span>
             <div className="text-lg sm:text-xl font-extrabold text-slate-900">
@@ -168,7 +168,7 @@ export default async function CourierHistoryPage({
               <div className="pt-2">
                 <Link
                   href="/courier/reports/new"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700 shadow-xs"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 shadow-xs"
                 >
                   <FilePlus className="h-4 w-4" />
                   <span>Input Laporan Sekarang</span>
@@ -197,7 +197,7 @@ export default async function CourierHistoryPage({
                     {report.isEditableByCourier && (
                       <Link
                         href={`/courier/reports/${report.id}/edit`}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-0.5 rounded-md transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-md transition-colors"
                       >
                         <Edit3 className="h-3 w-3" />
                         <span>Edit</span>
@@ -239,7 +239,7 @@ export default async function CourierHistoryPage({
                   {report.ojolCount > 0 && (
                     <div>
                       <span className="text-[10px] text-slate-400 font-semibold block flex items-center gap-1">
-                        <Bike className="h-2.5 w-2.5 text-orange-500" />
+                        <Bike className="h-2.5 w-2.5 text-red-500" />
                         <span>Ojol</span>
                       </span>
                       <span className="font-bold text-slate-800">

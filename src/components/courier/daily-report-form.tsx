@@ -252,7 +252,7 @@ export function DailyReportForm({
                 value={packageTypeId}
                 onChange={(e) => setPackageTypeId(e.target.value)}
                 disabled={isPending}
-                className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               >
                 {packageTypes.map((p) => (
@@ -355,7 +355,7 @@ export function DailyReportForm({
       <Card className="border-slate-200 shadow-2xs">
         <CardContent className="p-4 sm:p-5 space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Layers className="h-4 w-4 text-orange-600" />
+            <Layers className="h-4 w-4 text-red-600" />
             <span className="text-xs font-bold text-slate-900">
               Metrik Operasional &amp; Pendapatan
             </span>
@@ -416,7 +416,7 @@ export function DailyReportForm({
             {/* Ojol */}
             <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Bike className="h-3.5 w-3.5 text-orange-600" />
+                <Bike className="h-3.5 w-3.5 text-red-600" />
                 <span>Layanan Ojol (Transportasi)</span>
               </span>
               <div className="grid grid-cols-2 gap-2">
@@ -503,7 +503,7 @@ export function DailyReportForm({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contoh: Kondisi cuaca hujan di Matakali, titipan pesanan khusus diterima utuh."
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none"
+              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
               disabled={isPending}
             />
           </div>
