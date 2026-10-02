@@ -69,6 +69,12 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
 
   // Fallback / Initial State for development mode without database rows
   if (isPlaceholderEnv || !courierId) {
+    const { getCourierDailyReports } = await import("@/actions/daily-reports");
+    const reports = await getCourierDailyReports();
+    const todayReports = reports.filter((r) => r.date === todayWita);
+    const totalOrders = todayReports.reduce((sum, r) => sum + r.orderCount, 0);
+    const totalOmset = todayReports.reduce((sum, r) => sum + r.omset, 0);
+
     return {
       courierName,
       courierCode,
@@ -76,38 +82,23 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
       plateNumber,
       todayDateFormatted: todayFormatted,
       attendance: attendanceState,
-      recentReports: [
-        {
-          id: "demo-report-1",
-          date: todayWita,
-          originDisplay: "Manding, Polewali",
-          destDisplay: "Madatte, Polewali",
-          routeDisplay: "Manding, Polewali → Madatte, Polewali",
-          packageName: "Reguler",
-          orderCount: 14,
-          omset: 140000,
-          ojolCount: 3,
-          jastipCount: 2,
-          createdAtFormatted: "Hari ini, 09:30 WITA",
-        },
-        {
-          id: "demo-report-2",
-          date: todayWita,
-          originDisplay: "Manding, Polewali",
-          destDisplay: "Sidodadi, Wonomulyo",
-          routeDisplay: "Manding, Polewali → Sidodadi, Wonomulyo",
-          packageName: "Express",
-          orderCount: 8,
-          omset: 96000,
-          ojolCount: 1,
-          jastipCount: 0,
-          createdAtFormatted: "Hari ini, 11:15 WITA",
-        },
-      ],
+      recentReports: reports.slice(0, 5).map((r) => ({
+        id: r.id,
+        date: r.date,
+        originDisplay: `${r.origin.villageName}, ${r.origin.districtName}`,
+        destDisplay: `${r.destination.villageName}, ${r.destination.districtName}`,
+        routeDisplay: r.routeDisplay,
+        packageName: r.packageTypeName,
+        orderCount: r.orderCount,
+        omset: r.omset,
+        ojolCount: r.ojolCount,
+        jastipCount: r.jastipCount,
+        createdAtFormatted: r.createdAtFormatted,
+      })),
       todayStats: {
-        totalOrders: 22,
-        totalOmset: 236000,
-        reportCount: 2,
+        totalOrders,
+        totalOmset,
+        reportCount: todayReports.length,
       },
     };
   }

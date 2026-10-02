@@ -70,28 +70,28 @@ export function validateDailyReportInput(input: DailyReportInput): {
   }
 
   // Numeric metrics validation
-  if (typeof input.orderCount !== "number" || input.orderCount < 0) {
-    errors.orderCount = "Jumlah order tidak boleh bernilai negatif";
+  if (typeof input.orderCount !== "number" || Number.isNaN(input.orderCount) || input.orderCount < 0) {
+    errors.orderCount = "Jumlah order harus berupa angka valid dan tidak boleh negatif";
   }
 
-  if (typeof input.omset !== "number" || input.omset < 0) {
-    errors.omset = "Omset tidak boleh bernilai negatif";
+  if (typeof input.omset !== "number" || Number.isNaN(input.omset) || input.omset < 0) {
+    errors.omset = "Omset harus berupa nilai uang numerik valid dan tidak boleh negatif";
   }
 
-  if (typeof input.ojolCount !== "number" || input.ojolCount < 0) {
-    errors.ojolCount = "Jumlah ojol tidak boleh bernilai negatif";
+  if (typeof input.ojolCount !== "number" || Number.isNaN(input.ojolCount) || input.ojolCount < 0) {
+    errors.ojolCount = "Jumlah ojol harus berupa angka valid dan tidak boleh negatif";
   }
 
-  if (typeof input.ojolAmount !== "number" || input.ojolAmount < 0) {
-    errors.ojolAmount = "Nominal ojol tidak boleh bernilai negatif";
+  if (typeof input.ojolAmount !== "number" || Number.isNaN(input.ojolAmount) || input.ojolAmount < 0) {
+    errors.ojolAmount = "Nominal ojol harus berupa nilai valid dan tidak boleh negatif";
   }
 
-  if (typeof input.jastipCount !== "number" || input.jastipCount < 0) {
-    errors.jastipCount = "Jumlah jastip tidak boleh bernilai negatif";
+  if (typeof input.jastipCount !== "number" || Number.isNaN(input.jastipCount) || input.jastipCount < 0) {
+    errors.jastipCount = "Jumlah jastip harus berupa angka valid dan tidak boleh negatif";
   }
 
-  if (typeof input.jastipAmount !== "number" || input.jastipAmount < 0) {
-    errors.jastipAmount = "Nominal jastip tidak boleh bernilai negatif";
+  if (typeof input.jastipAmount !== "number" || Number.isNaN(input.jastipAmount) || input.jastipAmount < 0) {
+    errors.jastipAmount = "Nominal jastip harus berupa nilai valid dan tidak boleh negatif";
   }
 
   return {

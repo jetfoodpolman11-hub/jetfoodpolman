@@ -19,6 +19,14 @@ export interface ActionResult {
   message?: string;
 }
 
+const fallbackPackageTypes: PackageTypeItem[] = [
+  { id: "pkg-reguler-id", name: "Reguler", description: "Pengiriman standar Polewali Mandar", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+  { id: "pkg-express-id", name: "Express", description: "Pengiriman prioritas same-day", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+  { id: "pkg-dokumen-id", name: "Dokumen", description: "Pengiriman surat & arsip penting", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+  { id: "pkg-cargo-id", name: "Cargo", description: "Pengiriman barang berat / volume besar", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+  { id: "pkg-kuliner-id", name: "Makanan & Minuman", description: "Pengantaran kuliner dan konsumsi", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+];
+
 /**
  * Fetch package types.
  * Admin can fetch all; Couriers can only fetch active package types.
@@ -26,6 +34,16 @@ export interface ActionResult {
 export async function getPackageTypes(options?: {
   activeOnly?: boolean;
 }): Promise<PackageTypeItem[]> {
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    return options?.activeOnly
+      ? fallbackPackageTypes.filter((p) => p.isActive)
+      : fallbackPackageTypes;
+  }
+
   const supabase = await createClient();
 
   let query = supabase
@@ -39,9 +57,11 @@ export async function getPackageTypes(options?: {
 
   const { data, error } = await query;
 
-  if (error || !data) {
-    console.error("Error fetching package types:", error);
-    return [];
+  if (error || !data || data.length === 0) {
+    if (error) console.error("Error fetching package types:", error);
+    return options?.activeOnly
+      ? fallbackPackageTypes.filter((p) => p.isActive)
+      : fallbackPackageTypes;
   }
 
   return data.map((item) => ({
