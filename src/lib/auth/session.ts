@@ -1,4 +1,5 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { UserRole } from "@/lib/constants";
 
@@ -27,6 +28,46 @@ export interface CurrentSessionData {
  */
 export async function getCurrentSession(): Promise<CurrentSessionData | null> {
   try {
+    const cookieStore = await cookies();
+    const mockRole = cookieStore.get("jf_mock_role")?.value as UserRole | undefined;
+
+    // Support local development mock session cookies
+    if (mockRole && (mockRole === "ADMIN" || mockRole === "KURIR")) {
+      const mockEmail =
+        cookieStore.get("jf_mock_email")?.value ||
+        (mockRole === "ADMIN"
+          ? "admin@jetfoodpolman.com"
+          : "kurir@jetfoodpolman.com");
+      const mockName =
+        cookieStore.get("jf_mock_name")?.value ||
+        (mockRole === "ADMIN" ? "Super Admin JetFood" : "Kurir Lapangan Ali");
+      const mockCode = cookieStore.get("jf_mock_code")?.value || "JF-001";
+
+      return {
+        user: {
+          id: mockRole === "ADMIN" ? "mock-admin-uuid" : "mock-courier-uuid",
+          email: mockEmail,
+        },
+        profile: {
+          id: mockRole === "ADMIN" ? "mock-admin-uuid" : "mock-courier-uuid",
+          role: mockRole,
+          fullName: mockName,
+          phone: "081234567890",
+          isActive: true,
+        },
+        courier:
+          mockRole === "KURIR"
+            ? {
+                id: "mock-courier-rec-id",
+                courierCode: mockCode,
+                vehicleType: "Motor",
+                plateNumber: "DC 1234 AA",
+              }
+            : null,
+      };
+    }
+
+    // Standard Supabase Auth
     const supabase = await createClient();
     const {
       data: { user },
