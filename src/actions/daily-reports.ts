@@ -9,6 +9,7 @@ import {
   type RegionSelection,
   validateDailyReportInput,
 } from "@/lib/validations/report";
+import { formatRouteDisplay, validateRouteSelection } from "@/lib/region/route";
 import { getPackageTypes } from "@/actions/package-types";
 
 export interface DailyReportRecord {
@@ -168,8 +169,27 @@ function mapMockToRecord(
   const isEditable =
     entry.courier_id === currentCourierId && entry.date === todayWita;
 
-  const originDesc = `${entry.origin_village_name}, ${entry.origin_district_name}`;
-  const destDesc = `${entry.dest_village_name}, ${entry.dest_district_name}`;
+  const origin: RegionSelection = {
+    provinceId: entry.origin_province_id,
+    provinceName: entry.origin_province_name,
+    regencyId: entry.origin_regency_id,
+    regencyName: entry.origin_regency_name,
+    districtId: entry.origin_district_id,
+    districtName: entry.origin_district_name,
+    villageId: entry.origin_village_id,
+    villageName: entry.origin_village_name,
+  };
+
+  const destination: RegionSelection = {
+    provinceId: entry.dest_province_id,
+    provinceName: entry.dest_province_name,
+    regencyId: entry.dest_regency_id,
+    regencyName: entry.dest_regency_name,
+    districtId: entry.dest_district_id,
+    districtName: entry.dest_district_name,
+    villageId: entry.dest_village_id,
+    villageName: entry.dest_village_name,
+  };
 
   return {
     id: entry.id,
@@ -179,27 +199,9 @@ function mapMockToRecord(
     date: entry.date,
     packageTypeId: entry.package_type_id,
     packageTypeName: entry.package_type_name,
-    origin: {
-      provinceId: entry.origin_province_id,
-      provinceName: entry.origin_province_name,
-      regencyId: entry.origin_regency_id,
-      regencyName: entry.origin_regency_name,
-      districtId: entry.origin_district_id,
-      districtName: entry.origin_district_name,
-      villageId: entry.origin_village_id,
-      villageName: entry.origin_village_name,
-    },
-    destination: {
-      provinceId: entry.dest_province_id,
-      provinceName: entry.dest_province_name,
-      regencyId: entry.dest_regency_id,
-      regencyName: entry.dest_regency_name,
-      districtId: entry.dest_district_id,
-      districtName: entry.dest_district_name,
-      villageId: entry.dest_village_id,
-      villageName: entry.dest_village_name,
-    },
-    routeDisplay: `${originDesc} → ${destDesc}`,
+    origin,
+    destination,
+    routeDisplay: formatRouteDisplay(origin, destination),
     orderCount: entry.order_count,
     omset: entry.omset,
     ojolCount: entry.ojol_count,
@@ -240,6 +242,15 @@ export async function createDailyReportAction(
   if (!validation.isValid) {
     const firstError = Object.values(validation.errors)[0];
     return { success: false, error: firstError || "Data laporan tidak valid." };
+  }
+
+  // 1b. Indonesian Regional Hierarchy & Route validation
+  const routeValidation = validateRouteSelection(input.origin, input.destination);
+  if (!routeValidation.isValid) {
+    return {
+      success: false,
+      error: routeValidation.error || "Rute wilayah tidak valid.",
+    };
   }
 
   // 2. Validate package type is active
@@ -437,6 +448,15 @@ export async function updateDailyReportAction(
     return { success: false, error: firstError || "Data laporan tidak valid." };
   }
 
+  // Indonesian Regional Hierarchy & Route validation
+  const routeValidation = validateRouteSelection(rawInput.origin, rawInput.destination);
+  if (!routeValidation.isValid) {
+    return {
+      success: false,
+      error: routeValidation.error || "Rute wilayah tidak valid.",
+    };
+  }
+
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
@@ -624,8 +644,26 @@ export async function getCourierDailyReports(options?: {
     const pkg = Array.isArray(item.package_types)
       ? item.package_types[0]
       : item.package_types;
-    const originDesc = `${item.origin_village_name}, ${item.origin_district_name}`;
-    const destDesc = `${item.dest_village_name}, ${item.dest_district_name}`;
+    const origin: RegionSelection = {
+      provinceId: item.origin_province_id,
+      provinceName: item.origin_province_name,
+      regencyId: item.origin_regency_id,
+      regencyName: item.origin_regency_name,
+      districtId: item.origin_district_id,
+      districtName: item.origin_district_name,
+      villageId: item.origin_village_id,
+      villageName: item.origin_village_name,
+    };
+    const destination: RegionSelection = {
+      provinceId: item.dest_province_id,
+      provinceName: item.dest_province_name,
+      regencyId: item.dest_regency_id,
+      regencyName: item.dest_regency_name,
+      districtId: item.dest_district_id,
+      districtName: item.dest_district_name,
+      villageId: item.dest_village_id,
+      villageName: item.dest_village_name,
+    };
 
     return {
       id: item.id,
@@ -635,27 +673,9 @@ export async function getCourierDailyReports(options?: {
       date: item.date,
       packageTypeId: item.package_type_id,
       packageTypeName: pkg?.name || "Reguler",
-      origin: {
-        provinceId: item.origin_province_id,
-        provinceName: item.origin_province_name,
-        regencyId: item.origin_regency_id,
-        regencyName: item.origin_regency_name,
-        districtId: item.origin_district_id,
-        districtName: item.origin_district_name,
-        villageId: item.origin_village_id,
-        villageName: item.origin_village_name,
-      },
-      destination: {
-        provinceId: item.dest_province_id,
-        provinceName: item.dest_province_name,
-        regencyId: item.dest_regency_id,
-        regencyName: item.dest_regency_name,
-        districtId: item.dest_district_id,
-        districtName: item.dest_district_name,
-        villageId: item.dest_village_id,
-        villageName: item.dest_village_name,
-      },
-      routeDisplay: `${originDesc} → ${destDesc}`,
+      origin,
+      destination,
+      routeDisplay: formatRouteDisplay(origin, destination),
       orderCount: item.order_count,
       omset: Number(item.omset) || 0,
       ojolCount: item.ojol_count,
@@ -733,8 +753,26 @@ export async function getDailyReportById(
       : courierObj.profiles
     : null;
 
-  const originDesc = `${data.origin_village_name}, ${data.origin_district_name}`;
-  const destDesc = `${data.dest_village_name}, ${data.dest_district_name}`;
+  const origin: RegionSelection = {
+    provinceId: data.origin_province_id,
+    provinceName: data.origin_province_name,
+    regencyId: data.origin_regency_id,
+    regencyName: data.origin_regency_name,
+    districtId: data.origin_district_id,
+    districtName: data.origin_district_name,
+    villageId: data.origin_village_id,
+    villageName: data.origin_village_name,
+  };
+  const destination: RegionSelection = {
+    provinceId: data.dest_province_id,
+    provinceName: data.dest_province_name,
+    regencyId: data.dest_regency_id,
+    regencyName: data.dest_regency_name,
+    districtId: data.dest_district_id,
+    districtName: data.dest_district_name,
+    villageId: data.dest_village_id,
+    villageName: data.dest_village_name,
+  };
 
   return {
     id: data.id,
@@ -744,27 +782,9 @@ export async function getDailyReportById(
     date: data.date,
     packageTypeId: data.package_type_id,
     packageTypeName: pkg?.name || "Reguler",
-    origin: {
-      provinceId: data.origin_province_id,
-      provinceName: data.origin_province_name,
-      regencyId: data.origin_regency_id,
-      regencyName: data.origin_regency_name,
-      districtId: data.origin_district_id,
-      districtName: data.origin_district_name,
-      villageId: data.origin_village_id,
-      villageName: data.origin_village_name,
-    },
-    destination: {
-      provinceId: data.dest_province_id,
-      provinceName: data.dest_province_name,
-      regencyId: data.dest_regency_id,
-      regencyName: data.dest_regency_name,
-      districtId: data.dest_district_id,
-      districtName: data.dest_district_name,
-      villageId: data.dest_village_id,
-      villageName: data.dest_village_name,
-    },
-    routeDisplay: `${originDesc} → ${destDesc}`,
+    origin,
+    destination,
+    routeDisplay: formatRouteDisplay(origin, destination),
     orderCount: data.order_count,
     omset: Number(data.omset) || 0,
     ojolCount: data.ojol_count,

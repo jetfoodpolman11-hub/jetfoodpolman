@@ -10,8 +10,14 @@ import {
   type DailyReportRecord,
 } from "@/actions/daily-reports";
 import { type RegionSelection } from "@/lib/validations/report";
+import {
+  formatRouteDisplay,
+  validateRouteSelection,
+  toTitleCase,
+} from "@/lib/region/route";
 import { ReportRegionCascade } from "./report-region-cascade";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatRupiah } from "@/lib/utils";
@@ -89,11 +95,11 @@ export function DailyReportForm({
     message: string;
   } | null>(null);
 
-  // Business rule check: origin vs destination village
-  const isIdenticalRoute =
-    !!origin?.villageId &&
-    !!destination?.villageId &&
-    origin.villageId === destination.villageId;
+  // Business rule check: route evaluation via validateRouteSelection
+  const routeValidation =
+    origin && destination ? validateRouteSelection(origin, destination) : null;
+  const isIdenticalRoute = routeValidation?.isIdentical ?? false;
+  const isSameDistrict = routeValidation?.isSameDistrict ?? false;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,10 +121,11 @@ export function DailyReportForm({
       return;
     }
 
-    if (isIdenticalRoute) {
+    const routeCheck = validateRouteSelection(origin, destination);
+    if (!routeCheck.isValid) {
       setFeedback({
         type: "error",
-        message: "Wilayah keberangkatan dan tujuan tidak boleh desa/kelurahan yang sama.",
+        message: routeCheck.error || "Rute perjalanan tidak valid.",
       });
       return;
     }
@@ -211,15 +218,6 @@ export function DailyReportForm({
         </div>
       )}
 
-      {/* Identical Route Warning */}
-      {isIdenticalRoute && (
-        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <span>
-            <strong>Peringatan Rute:</strong> Desa/Kelurahan keberangkatan dan tujuan tidak boleh identik ({origin?.villageName}).
-          </span>
-        </div>
-      )}
 
       {/* 1. Date & Package Type Card */}
       <Card className="border-slate-200 shadow-2xs">
@@ -293,6 +291,65 @@ export function DailyReportForm({
           disabled={isPending}
         />
       </div>
+
+      {/* Live Route Display & Validation Box */}
+      {origin?.villageId && destination?.villageId && (
+        <div
+          className={`p-4 rounded-xl border text-xs space-y-2 transition-all ${
+            isIdenticalRoute
+              ? "bg-rose-50 border-rose-200 text-rose-950"
+              : isSameDistrict
+              ? "bg-blue-50/80 border-blue-200 text-blue-950"
+              : "bg-emerald-50/80 border-emerald-200 text-emerald-950"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-[10px] uppercase tracking-wider text-slate-500">
+              Hasil Display Rute Perjalanan
+            </span>
+            {isIdenticalRoute ? (
+              <Badge variant="danger" className="text-[10px] font-bold">
+                Rute Tidak Sah (Identik)
+              </Badge>
+            ) : isSameDistrict ? (
+              <Badge variant="info" className="text-[10px] font-bold">
+                Rute Dalam Kecamatan Sama (Sah &amp; Valid)
+              </Badge>
+            ) : (
+              <Badge variant="success" className="text-[10px] font-bold">
+                Rute Antar Wilayah (Sah &amp; Valid)
+              </Badge>
+            )}
+          </div>
+
+          <p className="text-sm font-extrabold text-slate-900 leading-snug">
+            {formatRouteDisplay(origin, destination)}
+          </p>
+
+          {isIdenticalRoute ? (
+            <p className="text-[11px] text-rose-700 flex items-center gap-1 font-medium">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Desa/Kelurahan keberangkatan ({origin.villageName}) dan tujuan ({destination.villageName}) tidak boleh sama. Rute harus berbeda.
+              </span>
+            </p>
+          ) : isSameDistrict ? (
+            <p className="text-[11px] text-blue-700 flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span>
+                Pengantaran antar-desa dalam satu kecamatan ({toTitleCase(origin.districtName)}) sah dan valid untuk dilaporkan.
+              </span>
+            </p>
+          ) : (
+            <p className="text-[11px] text-emerald-700 flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>
+                Rute perjalanan antar-wilayah terkonfirmasi lengkap dan valid.
+              </span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 3. Operational Metrics: Orders, Omset, Ojol, Jastip */}
       <Card className="border-slate-200 shadow-2xs">
