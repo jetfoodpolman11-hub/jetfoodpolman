@@ -164,33 +164,33 @@ function validateRouteSelection(origin, destination) {
 const sulbarMandingPolewali = {
   provinceId: "76",
   provinceName: "SULAWESI BARAT",
-  regencyId: "7604",
+  regencyId: "7602",
   regencyName: "KABUPATEN POLEWALI MANDAR",
-  districtId: "760401",
+  districtId: "7602050",
   districtName: "POLEWALI",
-  villageId: "7604011001",
+  villageId: "7602050002",
   villageName: "MANDING",
 };
 
 const sulbarMadattePolewali = {
   provinceId: "76",
   provinceName: "SULAWESI BARAT",
-  regencyId: "7604",
+  regencyId: "7602",
   regencyName: "KABUPATEN POLEWALI MANDAR",
-  districtId: "760401",
+  districtId: "7602050",
   districtName: "POLEWALI",
-  villageId: "7604011002",
+  villageId: "7602050003",
   villageName: "MADATTE",
 };
 
 const sulbarSidodadiWonomulyo = {
   provinceId: "76",
   provinceName: "SULAWESI BARAT",
-  regencyId: "7604",
+  regencyId: "7602",
   regencyName: "KABUPATEN POLEWALI MANDAR",
-  districtId: "760402",
+  districtId: "7602040",
   districtName: "WONOMULYO",
-  villageId: "7604021001",
+  villageId: "7602040009",
   villageName: "SIDODADI",
 };
 
@@ -286,8 +286,8 @@ console.log("\nTest 5: API Error Handling & Retry Simulation");
       throw new Error("HTTP 503: Service Unavailable");
     }
     return [
-      { id: "760401", regency_id: "7604", name: "POLEWALI" },
-      { id: "760402", regency_id: "7604", name: "WONOMULYO" },
+      { id: "7602050", regency_id: "7602", name: "POLEWALI" },
+      { id: "7602040", regency_id: "7602", name: "WONOMULYO" },
     ];
   }
 
@@ -391,12 +391,12 @@ console.log("\nTest 8: Invalid Regional ID & Hierarchy Prefix Validation");
   assert.strictEqual(validateRegionId("760", "regency", "76"), false);
   // Regency prefix mismatch (starts with 75 instead of parent 76)
   assert.strictEqual(validateRegionId("7504", "regency", "76"), false);
-  // District prefix mismatch (starts with 7603 instead of parent 7604)
-  assert.strictEqual(validateRegionId("760301", "district", "7604"), false);
+  // District prefix mismatch (starts with 7603 instead of parent 7602)
+  assert.strictEqual(validateRegionId("7603010", "district", "7602"), false);
   // Village length invalid (9 digits instead of 10)
-  assert.strictEqual(validateRegionId("760401100", "village", "760401"), false);
+  assert.strictEqual(validateRegionId("760205000", "village", "7602050"), false);
   // Village prefix mismatch
-  assert.strictEqual(validateRegionId("7604021001", "village", "760401"), false);
+  assert.strictEqual(validateRegionId("7602040009", "village", "7602050"), false);
 
   const corruptedOrigin = {
     ...sulbarMandingPolewali,
@@ -461,10 +461,10 @@ console.log("\nTest 10: Data Storage Integrity");
   };
 
   assert.strictEqual(dbRecord.origin_province_id, "76");
-  assert.strictEqual(dbRecord.origin_regency_id, "7604");
-  assert.strictEqual(dbRecord.origin_district_id, "760401");
-  assert.strictEqual(dbRecord.origin_village_id, "7604011001");
-  assert.strictEqual(dbRecord.dest_village_id, "7604011002");
+  assert.strictEqual(dbRecord.origin_regency_id, "7602");
+  assert.strictEqual(dbRecord.origin_district_id, "7602050");
+  assert.strictEqual(dbRecord.origin_village_id, "7602050002");
+  assert.strictEqual(dbRecord.dest_village_id, "7602050003");
   assert.notStrictEqual(dbRecord.origin_village_id, dbRecord.dest_village_id);
   console.log("  ✓ Raw regional IDs and names stored in database schema without relying on static strings");
 }

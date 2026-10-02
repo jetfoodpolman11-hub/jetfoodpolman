@@ -9,7 +9,7 @@ import { toTitleCase } from "@/lib/region/route";
 
 // Fixed to Polewali Mandar, Sulawesi Barat as requested
 const POLMAN_PROVINCE = { id: "76", name: "SULAWESI BARAT" };
-const POLMAN_REGENCY = { id: "7604", name: "KABUPATEN POLEWALI MANDAR" };
+const POLMAN_REGENCY = { id: "7602", name: "KABUPATEN POLEWALI MANDAR" };
 
 interface ReportRegionCascadeProps {
   label: string;

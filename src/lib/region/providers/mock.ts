@@ -22,51 +22,67 @@ export class MockRegionProvider implements RegionProvider {
   ];
 
   private regencies: Regency[] = [
-    { id: "7604", province_id: "76", name: "KABUPATEN POLEWALI MANDAR" },
-    { id: "7602", province_id: "76", name: "KABUPATEN MAJENE" },
-    { id: "7601", province_id: "76", name: "KABUPATEN MAMUJU" },
+    { id: "7601", province_id: "76", name: "KABUPATEN MAJENE" },
+    { id: "7602", province_id: "76", name: "KABUPATEN POLEWALI MANDAR" },
+    { id: "7603", province_id: "76", name: "KABUPATEN MAMASA" },
+    { id: "7604", province_id: "76", name: "KABUPATEN MAMUJU" },
     { id: "7326", province_id: "73", name: "KABUPATEN TORAJA UTARA" },
     { id: "7317", province_id: "73", name: "KABUPATEN LUWU" },
   ];
 
   private districts: District[] = [
-    { id: "760401", regency_id: "7604", name: "POLEWALI" },
-    { id: "760402", regency_id: "7604", name: "WONOMULYO" },
-    { id: "760403", regency_id: "7604", name: "TINAMBUNG" },
-    { id: "760404", regency_id: "7604", name: "CAMPALAGIAN" },
-    { id: "760405", regency_id: "7604", name: "MATAKALI" },
-    { id: "760406", regency_id: "7604", name: "BINUANG" },
-    { id: "760407", regency_id: "7604", name: "TAPANGO" },
+    { id: "7602010", regency_id: "7602", name: "TINAMBUNG" },
+    { id: "7602011", regency_id: "7602", name: "BALANIPA" },
+    { id: "7602012", regency_id: "7602", name: "LIMBORO" },
+    { id: "7602020", regency_id: "7602", name: "TUBBI TARAMANU" },
+    { id: "7602021", regency_id: "7602", name: "ALU" },
+    { id: "7602030", regency_id: "7602", name: "CAMPALAGIAN" },
+    { id: "7602031", regency_id: "7602", name: "LUYO" },
+    { id: "7602040", regency_id: "7602", name: "WONOMULYO" },
+    { id: "7602041", regency_id: "7602", name: "MAPILLI" },
+    { id: "7602042", regency_id: "7602", name: "TAPANGO" },
+    { id: "7602043", regency_id: "7602", name: "MATAKALI" },
+    { id: "7602044", regency_id: "7602", name: "BULO" },
+    { id: "7602050", regency_id: "7602", name: "POLEWALI" },
+    { id: "7602051", regency_id: "7602", name: "BINUANG" },
+    { id: "7602052", regency_id: "7602", name: "ANREAPI" },
+    { id: "7602061", regency_id: "7602", name: "MATANGNGA" },
   ];
 
   private villages: Village[] = [
-    // Kecamatan Polewali (760401)
-    { id: "7604011001", district_id: "760401", name: "MANDING" },
-    { id: "7604011002", district_id: "760401", name: "MADATTE" },
-    { id: "7604011003", district_id: "760401", name: "PEKKABATA" },
-    { id: "7604011004", district_id: "760401", name: "TAKATIDUNG" },
-    { id: "7604011005", district_id: "760401", name: "POLEWALI" },
-    { id: "7604011006", district_id: "760401", name: "DARMA" },
-    // Kecamatan Wonomulyo (760402)
-    { id: "7604021001", district_id: "760402", name: "SIDODADI" },
-    { id: "7604022002", district_id: "760402", name: "CAMPURJO" },
-    { id: "7604022003", district_id: "760402", name: "BUMI MULYO" },
-    { id: "7604022004", district_id: "760402", name: "SUGIHWARAS" },
-    // Kecamatan Matakali (760405)
-    { id: "7604051001", district_id: "760405", name: "MATAKALI" },
-    { id: "7604052002", district_id: "760405", name: "PASIANG" },
-    // Kecamatan Campalagian (760404)
-    { id: "7604042001", district_id: "760404", name: "PARAPPE" },
-    { id: "7604042002", district_id: "760404", name: "LALIKO" },
-    // Kecamatan Tinambung (760403)
-    { id: "7604031001", district_id: "760403", name: "BATULAYA" },
-    { id: "7604032002", district_id: "760403", name: "TINAMBUNG" },
-    // Kecamatan Binuang (760406)
-    { id: "7604061001", district_id: "760406", name: "AMASSANGAN" },
-    { id: "7604062002", district_id: "760406", name: "BINUANG" },
-    // Kecamatan Tapango (760407)
-    { id: "7604071001", district_id: "760407", name: "TAPANGO" },
-    { id: "7604072002", district_id: "760407", name: "RAPPOANG" },
+    // Kecamatan Polewali (7602050)
+    { id: "7602050001", district_id: "7602050", name: "DARMA" },
+    { id: "7602050002", district_id: "7602050", name: "MANDING" },
+    { id: "7602050003", district_id: "7602050", name: "MADATTE" },
+    { id: "7602050004", district_id: "7602050", name: "PEKKABATA" },
+    { id: "7602050005", district_id: "7602050", name: "TAKATIDUNG" },
+    { id: "7602050006", district_id: "7602050", name: "LANTORA" },
+    { id: "7602050007", district_id: "7602050", name: "SULEWATANG" },
+    { id: "7602050008", district_id: "7602050", name: "WATTANG" },
+    { id: "7602050009", district_id: "7602050", name: "POLEWALI" },
+    // Kecamatan Wonomulyo (7602040)
+    { id: "7602040001", district_id: "7602040", name: "TUMPILING" },
+    { id: "7602040006", district_id: "7602040", name: "BUMIAYU" },
+    { id: "7602040007", district_id: "7602040", name: "BUMI MULYO" },
+    { id: "7602040008", district_id: "7602040", name: "SIDOREJO" },
+    { id: "7602040009", district_id: "7602040", name: "SIDODADI" },
+    { id: "7602040010", district_id: "7602040", name: "CAMPURJO" },
+    { id: "7602040015", district_id: "7602040", name: "SUGIH WARAS" },
+    // Kecamatan Matakali (7602043)
+    { id: "7602043001", district_id: "7602043", name: "MATAKALI" },
+    { id: "7602043002", district_id: "7602043", name: "PASIANG" },
+    // Kecamatan Campalagian (7602030)
+    { id: "7602030001", district_id: "7602030", name: "PARAPPE" },
+    { id: "7602030002", district_id: "7602030", name: "LALIKO" },
+    // Kecamatan Tinambung (7602010)
+    { id: "7602010001", district_id: "7602010", name: "BATULAYA" },
+    { id: "7602010002", district_id: "7602010", name: "TINAMBUNG" },
+    // Kecamatan Binuang (7602051)
+    { id: "7602051001", district_id: "7602051", name: "AMASSANGAN" },
+    { id: "7602051002", district_id: "7602051", name: "BINUANG" },
+    // Kecamatan Tapango (7602042)
+    { id: "7602042001", district_id: "7602042", name: "TAPANGO" },
+    { id: "7602042002", district_id: "7602042", name: "RAPPOANG" },
   ];
 
   async getProvinces(): Promise<Province[]> {
