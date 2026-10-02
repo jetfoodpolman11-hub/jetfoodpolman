@@ -1,7 +1,8 @@
 import { requireCourier } from "@/lib/auth/guards";
 import Link from "next/link";
+import Image from "next/image";
 import { LogoutButton } from "@/components/shared/logout-button";
-import { Clock, FilePlus, History, Home, Truck } from "lucide-react";
+import { Clock, FilePlus, History, Home } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -23,17 +24,17 @@ export default async function CourierLayout({
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-2xs">
         <div className="mx-auto flex h-16 max-w-lg items-center justify-between px-4 sm:max-w-3xl lg:max-w-4xl">
           <Link href="/courier/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 font-bold text-white shadow-xs text-sm">
-              <Truck className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-sm font-bold text-slate-900 leading-none block">
-                {APP_NAME}
-              </span>
-              <span className="text-[10px] text-orange-600 font-bold uppercase tracking-wider mt-0.5 block">
-                {session.courier?.courierCode || "JF-KURIR"}
-              </span>
-            </div>
+            <Image
+              src="/images/logo.png"
+              alt="JetFood Logo"
+              width={120}
+              height={40}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+            <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+              {session.courier?.courierCode || "JF-KURIR"}
+            </span>
           </Link>
 
           {/* Desktop Nav Links (Hidden on small mobile) */}
@@ -86,7 +87,7 @@ export default async function CourierLayout({
         <div className="max-w-lg mx-auto grid grid-cols-4 px-2 text-center">
           <Link
             href="/courier/dashboard"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-orange-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
           >
             <Home className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Beranda</span>
@@ -94,7 +95,7 @@ export default async function CourierLayout({
 
           <Link
             href="/courier/attendance"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-orange-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
           >
             <Clock className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Absen</span>
@@ -102,7 +103,7 @@ export default async function CourierLayout({
 
           <Link
             href="/courier/reports/new"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-orange-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
           >
             <FilePlus className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Laporan</span>
@@ -110,7 +111,7 @@ export default async function CourierLayout({
 
           <Link
             href="/courier/history"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-orange-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
           >
             <History className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Riwayat</span>

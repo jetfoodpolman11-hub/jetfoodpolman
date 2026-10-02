@@ -15,6 +15,7 @@ import {
   Truck,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "@/lib/utils";
+import { BiometricCard } from "@/components/courier/biometric-card";
 
 export const metadata = {
   title: "Dashboard Kurir — JetFood Polman",
@@ -30,9 +31,9 @@ export default async function CourierDashboardPage() {
   return (
     <div className="space-y-5">
       {/* 1. Greeting Banner */}
-      <div className="rounded-2xl bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 p-5 text-white shadow-sm">
+      <div className="rounded-2xl bg-gradient-to-br from-red-600 via-red-600 to-slate-900 p-5 text-white shadow-sm">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-orange-100">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-red-100">
             {data.todayDateFormatted}
           </span>
           <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-xs">
@@ -44,7 +45,7 @@ export default async function CourierDashboardPage() {
           Halo, {data.courierName}!
         </h1>
 
-        <div className="flex items-center gap-2 mt-2 text-xs text-orange-100">
+        <div className="flex items-center gap-2 mt-2 text-xs text-red-100">
           <Truck className="h-3.5 w-3.5" />
           <span>
             {data.vehicleType || "Sepeda Motor"}{" "}
@@ -52,6 +53,9 @@ export default async function CourierDashboardPage() {
           </span>
         </div>
       </div>
+
+      {/* 2. Biometric Fingerprint Activation Card */}
+      <BiometricCard courierCode={data.courierCode} courierName={data.courierName} />
 
       {/* 2. Today's Attendance Card */}
       <Card className="border-slate-200 shadow-xs">
@@ -109,7 +113,7 @@ export default async function CourierDashboardPage() {
           {isBelumAbsen && (
             <Link
               href="/courier/attendance"
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 transition-colors shadow-sm"
             >
               <Clock className="h-4 w-4" />
               <span>Absen Masuk Sekarang</span>
@@ -143,10 +147,10 @@ export default async function CourierDashboardPage() {
         href="/courier/reports/new"
         className="block group"
       >
-        <Card className="border-orange-200 bg-gradient-to-r from-orange-50/70 to-amber-50/40 hover:border-orange-300 transition-all shadow-xs cursor-pointer">
+        <Card className="border-red-200 bg-gradient-to-r from-red-50/70 to-rose-50/40 hover:border-red-300 transition-all shadow-xs cursor-pointer">
           <CardContent className="p-4 sm:p-5 flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="h-12 w-12 rounded-xl bg-orange-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
                 <FilePlus className="h-6 w-6" />
               </div>
               <div>
@@ -159,7 +163,7 @@ export default async function CourierDashboardPage() {
               </div>
             </div>
 
-            <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-orange-600 shadow-2xs group-hover:translate-x-1 transition-transform">
+            <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-red-600 shadow-2xs group-hover:translate-x-1 transition-transform">
               <ArrowRight className="h-4 w-4" />
             </div>
           </CardContent>
@@ -174,7 +178,7 @@ export default async function CourierDashboardPage() {
               <span className="text-[10px] uppercase font-bold tracking-wider">
                 Order Hari Ini
               </span>
-              <Package className="h-4 w-4 text-orange-600" />
+              <Package className="h-4 w-4 text-red-600" />
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-slate-900">
               {formatNumber(data.todayStats.totalOrders)}{" "}
@@ -214,7 +218,7 @@ export default async function CourierDashboardPage() {
             </CardTitle>
             <Link
               href="/courier/history"
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+              className="text-xs font-semibold text-red-600 hover:text-red-700"
             >
               Lihat Semua &rarr;
             </Link>
@@ -233,7 +237,7 @@ export default async function CourierDashboardPage() {
               </p>
               <Link
                 href="/courier/reports/new"
-                className="inline-flex text-xs font-semibold text-orange-600 hover:underline"
+                className="inline-flex text-xs font-semibold text-red-600 hover:underline"
               >
                 Mulai input laporan pertama &rarr;
               </Link>

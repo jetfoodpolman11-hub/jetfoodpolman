@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import Link from "next/link";
+import Image from "next/image";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { ShieldCheck, Users, CalendarCheck, FileText, Database, LayoutDashboard } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
@@ -23,18 +24,18 @@ export default async function AdminLayout({
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
-            <Link href="/admin/dashboard" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 font-bold text-white shadow-sm">
-                JF
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-base font-bold text-slate-900 tracking-tight block leading-tight">
-                  {APP_NAME}
-                </span>
-                <span className="text-[10px] text-orange-600 font-bold tracking-wide uppercase block">
-                  Admin Portal
-                </span>
-              </div>
+            <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+              <Image
+                src="/images/logo.png"
+                alt="JetFood Logo"
+                width={120}
+                height={40}
+                className="h-8 w-auto object-contain"
+                priority
+              />
+              <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                Admin
+              </span>
             </Link>
 
             {/* Admin Nav Links */}
@@ -81,7 +82,7 @@ export default async function AdminLayout({
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <div className="text-xs font-semibold text-slate-900 flex items-center justify-end gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-orange-600" />
+                <ShieldCheck className="h-3.5 w-3.5 text-red-600" />
                 {session.profile?.fullName || "Administrator"}
               </div>
               <span className="text-[10px] text-slate-500 font-medium">{session.user.email}</span>
