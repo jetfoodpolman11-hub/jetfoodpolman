@@ -7,7 +7,7 @@ import {
 import { AttendanceCard } from "@/components/courier/attendance-card";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, History, Calendar, AlertCircle } from "lucide-react";
+import { ArrowLeft, History, Calendar, AlertCircle, MapPin } from "lucide-react";
 import { formatWitaDateFull } from "@/lib/date";
 
 export const metadata = {
@@ -111,6 +111,12 @@ export default async function CourierAttendancePage() {
                         <span className="font-bold text-slate-800">
                           {record.clockInTimeFormatted}
                         </span>
+                        {record.clockInLocation && (
+                          <span className="text-[10px] text-red-600 flex items-center gap-1 mt-0.5 font-medium truncate">
+                            <MapPin className="h-2.5 w-2.5 shrink-0" />
+                            <span>{record.clockInLocation}</span>
+                          </span>
+                        )}
                         {record.clockInNotes && (
                           <span className="text-[10px] text-slate-500 block truncate mt-0.5" title={record.clockInNotes}>
                             Catatan: {record.clockInNotes}
@@ -125,6 +131,12 @@ export default async function CourierAttendancePage() {
                         <span className="font-bold text-slate-800">
                           {record.clockOutTimeFormatted || "—"}
                         </span>
+                        {record.clockOutLocation && (
+                          <span className="text-[10px] text-red-600 flex items-center gap-1 mt-0.5 font-medium truncate">
+                            <MapPin className="h-2.5 w-2.5 shrink-0" />
+                            <span>{record.clockOutLocation}</span>
+                          </span>
+                        )}
                         {record.clockOutNotes && (
                           <span className="text-[10px] text-slate-500 block truncate mt-0.5" title={record.clockOutNotes}>
                             Catatan: {record.clockOutNotes}

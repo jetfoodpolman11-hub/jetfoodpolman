@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getRegencies, getDistricts, getVillages } from "@/actions/regions";
-import { Province, Regency, District, Village } from "@/lib/region/types";
+import { getDistricts, getVillages } from "@/actions/regions";
+import { Province, District, Village } from "@/lib/region/types";
 import { type RegionSelection } from "@/lib/validations/report";
-import { MapPin, Loader2, RotateCcw, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { MapPin, Loader2, RotateCcw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toTitleCase } from "@/lib/region/route";
+
+// Fixed to Polewali Mandar, Sulawesi Barat as requested
+const POLMAN_PROVINCE = { id: "76", name: "SULAWESI BARAT" };
+const POLMAN_REGENCY = { id: "7604", name: "KABUPATEN POLEWALI MANDAR" };
 
 interface ReportRegionCascadeProps {
   label: string;
   badgeText: string;
   badgeBg: string;
-  provinces: Province[];
+  provinces?: Province[];
   initialValue?: RegionSelection | null;
   onChange: (region: RegionSelection | null) => void;
   disabled?: boolean;
@@ -21,120 +25,71 @@ export function ReportRegionCascade({
   label,
   badgeText,
   badgeBg,
-  provinces,
   initialValue,
   onChange,
   disabled = false,
 }: ReportRegionCascadeProps) {
-  // Cascading lists
-  const [regencies, setRegencies] = useState<Regency[]>([]);
+  // Cascading lists within Polewali Mandar
   const [districts, setDistricts] = useState<District[]>([]);
   const [villages, setVillages] = useState<Village[]>([]);
 
   // Selected entities
-  const [provinceId, setProvinceId] = useState(initialValue?.provinceId || "");
-  const [regencyId, setRegencyId] = useState(initialValue?.regencyId || "");
   const [districtId, setDistrictId] = useState(initialValue?.districtId || "");
   const [villageId, setVillageId] = useState(initialValue?.villageId || "");
 
-  const [loadingLevel, setLoadingLevel] = useState<string | null>(null);
+  const [loadingLevel, setLoadingLevel] = useState<"district" | "village" | null>("district");
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Initialize cascade if initialValue is passed (e.g. edit mode)
+  // Load Polewali Mandar districts on mount
   useEffect(() => {
-    if (initialValue?.provinceId) {
-      getRegencies(initialValue.provinceId)
-        .then((data) => {
-          setRegencies(data);
-          setApiError(null);
-        })
-        .catch(() => setApiError("Gagal memuat daftar kabupaten/kota"));
-    }
-    if (initialValue?.regencyId) {
-      getDistricts(initialValue.regencyId)
-        .then((data) => {
-          setDistricts(data);
-          setApiError(null);
-        })
-        .catch(() => setApiError("Gagal memuat daftar kecamatan"));
-    }
-    if (initialValue?.districtId) {
-      getVillages(initialValue.districtId)
-        .then((data) => {
-          setVillages(data);
-          setApiError(null);
-        })
-        .catch(() => setApiError("Gagal memuat daftar desa/kelurahan"));
-    }
-  }, [initialValue]);
-
-  // Reset this specific cascade without disturbing the other region or other form fields
-  const handleResetCascade = () => {
-    setProvinceId("");
-    setRegencyId("");
-    setDistrictId("");
-    setVillageId("");
-    setRegencies([]);
-    setDistricts([]);
-    setVillages([]);
-    setApiError(null);
-    onChange(null);
-  };
-
-  // Handle Province Change
-  const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
-    setProvinceId(id);
-    setRegencyId("");
-    setDistrictId("");
-    setVillageId("");
-    setRegencies([]);
-    setDistricts([]);
-    setVillages([]);
-    setApiError(null);
-    onChange(null);
-
-    if (!id) return;
-    setLoadingLevel("regency");
-    try {
-      const data = await getRegencies(id);
-      if (!data || data.length === 0) {
-        setApiError("Tidak ada data kabupaten/kota untuk provinsi ini atau terjadi kendala jaringan.");
-      } else {
-        setRegencies(data);
-      }
-    } catch {
-      setApiError("Terjadi kegagalan saat menghubungi API wilayah (Kabupaten/Kota).");
-    } finally {
-      setLoadingLevel(null);
-    }
-  };
-
-  // Handle Regency Change
-  const handleRegencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
-    setRegencyId(id);
-    setDistrictId("");
-    setVillageId("");
-    setDistricts([]);
-    setVillages([]);
-    setApiError(null);
-    onChange(null);
-
-    if (!id) return;
-    setLoadingLevel("district");
-    try {
-      const data = await getDistricts(id);
-      if (!data || data.length === 0) {
-        setApiError("Tidak ada data kecamatan untuk kabupaten ini atau terjadi kendala jaringan.");
-      } else {
+    let isMounted = true;
+    getDistricts(POLMAN_REGENCY.id)
+      .then((data) => {
+        if (!isMounted) return;
         setDistricts(data);
-      }
-    } catch {
-      setApiError("Terjadi kegagalan saat menghubungi API wilayah (Kecamatan).");
-    } finally {
-      setLoadingLevel(null);
-    }
+        setApiError(null);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.error("Failed to load Polman districts:", err);
+        setApiError("Gagal memuat daftar kecamatan di Polewali Mandar.");
+      })
+      .finally(() => {
+        if (isMounted) setLoadingLevel(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Initialize villages if initialValue has districtId (e.g. edit mode)
+  useEffect(() => {
+    if (!initialValue?.districtId) return;
+    let isMounted = true;
+    getVillages(initialValue.districtId)
+      .then((data) => {
+        if (!isMounted) return;
+        setVillages(data);
+        setApiError(null);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setApiError("Gagal memuat daftar desa/kelurahan");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialValue?.districtId]);
+
+  // Reset this specific cascade
+  const handleResetCascade = () => {
+    setDistrictId("");
+    setVillageId("");
+    setVillages([]);
+    setApiError(null);
+    onChange(null);
   };
 
   // Handle District Change
@@ -147,16 +102,14 @@ export function ReportRegionCascade({
     onChange(null);
 
     if (!id) return;
+
     setLoadingLevel("village");
     try {
       const data = await getVillages(id);
-      if (!data || data.length === 0) {
-        setApiError("Tidak ada data desa/kelurahan untuk kecamatan ini atau terjadi kendala jaringan.");
-      } else {
-        setVillages(data);
-      }
-    } catch {
-      setApiError("Terjadi kegagalan saat menghubungi API wilayah (Desa/Kelurahan).");
+      setVillages(data);
+    } catch (err) {
+      console.error(`Failed to load villages for district ${id}:`, err);
+      setApiError("Koneksi API wilayah terganggu saat memuat kelurahan/desa.");
     } finally {
       setLoadingLevel(null);
     }
@@ -166,41 +119,35 @@ export function ReportRegionCascade({
   const handleVillageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setVillageId(id);
-    setApiError(null);
 
     if (!id) {
       onChange(null);
       return;
     }
 
-    const prov = provinces.find((p) => p.id === provinceId);
-    const reg = regencies.find((r) => r.id === regencyId);
-    const dist = districts.find((d) => d.id === districtId);
-    const vil = villages.find((v) => v.id === id);
+    const selectedDistrict = districts.find((d) => d.id === districtId);
+    const selectedVillage = villages.find((v) => v.id === id);
 
-    if (prov && reg && dist && vil) {
-      onChange({
-        provinceId: prov.id,
-        provinceName: prov.name,
-        regencyId: reg.id,
-        regencyName: reg.name,
-        districtId: dist.id,
-        districtName: dist.name,
-        villageId: vil.id,
-        villageName: vil.name,
-      });
-    } else {
-      onChange(null);
+    if (selectedDistrict && selectedVillage) {
+      const selection: RegionSelection = {
+        provinceId: POLMAN_PROVINCE.id,
+        provinceName: POLMAN_PROVINCE.name,
+        regencyId: POLMAN_REGENCY.id,
+        regencyName: POLMAN_REGENCY.name,
+        districtId: selectedDistrict.id,
+        districtName: selectedDistrict.name,
+        villageId: selectedVillage.id,
+        villageName: selectedVillage.name,
+      };
+      onChange(selection);
     }
   };
 
-  // Selected names for human-readable display confirmation
-  const selectedVilObj = villages.find((v) => v.id === villageId);
   const selectedDistObj = districts.find((d) => d.id === districtId);
-  const selectedRegObj = regencies.find((r) => r.id === regencyId);
+  const selectedVillObj = villages.find((v) => v.id === villageId);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3.5 shadow-2xs">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
         <div className="flex items-center gap-1.5">
@@ -208,12 +155,12 @@ export function ReportRegionCascade({
           <span className="text-xs font-bold text-slate-900">{label}</span>
         </div>
         <div className="flex items-center gap-2">
-          {provinceId && (
+          {districtId && (
             <button
               type="button"
               onClick={handleResetCascade}
               disabled={disabled}
-              className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
               title="Reset pilihan wilayah ini"
             >
               <RotateCcw className="h-3 w-3" />
@@ -228,92 +175,25 @@ export function ReportRegionCascade({
         </div>
       </div>
 
-      {/* API Error Alert Banner with Retry Option */}
+      {/* Scope Info: Polewali Mandar, Sulbar */}
+      <div className="flex items-center justify-between text-[11px] bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-slate-500">
+        <span>Wilayah: <strong>Kab. Polewali Mandar</strong></span>
+        <span className="text-[10px] text-slate-400 font-mono">Sulbar (WITA)</span>
+      </div>
+
+      {/* API Error Notification */}
       {apiError && (
-        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start justify-between gap-2">
-          <div className="flex items-start gap-1.5">
-            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-            <span>{apiError}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setApiError(null);
-              if (provinceId && !regencyId) {
-                setLoadingLevel("regency");
-                getRegencies(provinceId)
-                  .then(setRegencies)
-                  .finally(() => setLoadingLevel(null));
-              } else if (regencyId && !districtId) {
-                setLoadingLevel("district");
-                getDistricts(regencyId)
-                  .then(setDistricts)
-                  .finally(() => setLoadingLevel(null));
-              } else if (districtId && !villageId) {
-                setLoadingLevel("village");
-                getVillages(districtId)
-                  .then(setVillages)
-                  .finally(() => setLoadingLevel(null));
-              }
-            }}
-            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 hover:underline"
-          >
-            <RefreshCw className="h-3 w-3" />
-            <span>Coba Lagi</span>
-          </button>
+        <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+          <span className="flex-1">{apiError}</span>
         </div>
       )}
 
-      {/* Cascading 4-Tier Dropdown Grid */}
+      {/* 2 Focused Dropdowns: Kecamatan & Desa/Kelurahan */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* 1. Provinsi */}
+        {/* 1. Kecamatan */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-            Provinsi
-          </label>
-          <select
-            value={provinceId}
-            onChange={handleProvinceChange}
-            disabled={disabled}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            <option value="">Pilih Provinsi...</option>
-            {provinces.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 2. Kabupaten/Kota */}
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
-            <span>Kabupaten / Kota</span>
-            {loadingLevel === "regency" && (
-              <Loader2 className="h-3 w-3 animate-spin text-red-600" />
-            )}
-          </label>
-          <select
-            value={regencyId}
-            onChange={handleRegencyChange}
-            disabled={disabled || !provinceId || loadingLevel === "regency"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            <option value="">
-              {!provinceId ? "Pilih Provinsi dulu" : "Pilih Kab/Kota..."}
-            </option>
-            {regencies.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 3. Kecamatan */}
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
+          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
             <span>Kecamatan</span>
             {loadingLevel === "district" && (
               <Loader2 className="h-3 w-3 animate-spin text-red-600" />
@@ -322,23 +202,24 @@ export function ReportRegionCascade({
           <select
             value={districtId}
             onChange={handleDistrictChange}
-            disabled={disabled || !regencyId || loadingLevel === "district"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
+            disabled={disabled || loadingLevel === "district"}
+            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400 cursor-pointer"
+            required
           >
             <option value="">
-              {!regencyId ? "Pilih Kab/Kota dulu" : "Pilih Kecamatan..."}
+              {loadingLevel === "district" ? "Memuat Kecamatan..." : "Pilih Kecamatan di Polman..."}
             </option>
             {districts.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name}
+                {toTitleCase(d.name)}
               </option>
             ))}
           </select>
         </div>
 
-        {/* 4. Desa / Kelurahan */}
+        {/* 2. Desa / Kelurahan */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
+          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
             <span>Desa / Kelurahan</span>
             {loadingLevel === "village" && (
               <Loader2 className="h-3 w-3 animate-spin text-red-600" />
@@ -348,14 +229,19 @@ export function ReportRegionCascade({
             value={villageId}
             onChange={handleVillageChange}
             disabled={disabled || !districtId || loadingLevel === "village"}
-            className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-slate-50 disabled:text-slate-400 cursor-pointer"
+            required
           >
             <option value="">
-              {!districtId ? "Pilih Kecamatan dulu" : "Pilih Desa/Kelurahan..."}
+              {!districtId
+                ? "Pilih Kecamatan dulu"
+                : loadingLevel === "village"
+                ? "Memuat Desa/Kelurahan..."
+                : "Pilih Desa / Kelurahan..."}
             </option>
             {villages.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.name}
+                {toTitleCase(v.name)}
               </option>
             ))}
           </select>
@@ -363,12 +249,14 @@ export function ReportRegionCascade({
       </div>
 
       {/* Human-Readable Confirmation Breadcrumb */}
-      {selectedVilObj && selectedDistObj && selectedRegObj && (
-        <div className="p-2 rounded-lg bg-emerald-50/80 border border-emerald-200/80 text-[11px] text-emerald-800 flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-          <span>
-            <strong>Terpilih:</strong> {toTitleCase(selectedVilObj.name)}, Kec.{" "}
-            {toTitleCase(selectedDistObj.name)}, {toTitleCase(selectedRegObj.name)}
+      {selectedDistObj && selectedVillObj && (
+        <div className="pt-1 flex items-center gap-1.5 text-xs text-slate-700 bg-red-50/50 p-2.5 rounded-xl border border-red-100">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="font-semibold text-slate-900">
+            {toTitleCase(selectedVillObj.name)}, {toTitleCase(selectedDistObj.name)}
+          </span>
+          <span className="text-[10px] text-slate-400 font-mono">
+            ({selectedVillObj.id})
           </span>
         </div>
       )}

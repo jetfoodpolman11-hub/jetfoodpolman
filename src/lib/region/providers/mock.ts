@@ -58,6 +58,15 @@ export class MockRegionProvider implements RegionProvider {
     // Kecamatan Campalagian (760404)
     { id: "7604042001", district_id: "760404", name: "PARAPPE" },
     { id: "7604042002", district_id: "760404", name: "LALIKO" },
+    // Kecamatan Tinambung (760403)
+    { id: "7604031001", district_id: "760403", name: "BATULAYA" },
+    { id: "7604032002", district_id: "760403", name: "TINAMBUNG" },
+    // Kecamatan Binuang (760406)
+    { id: "7604061001", district_id: "760406", name: "AMASSANGAN" },
+    { id: "7604062002", district_id: "760406", name: "BINUANG" },
+    // Kecamatan Tapango (760407)
+    { id: "7604071001", district_id: "760407", name: "TAPANGO" },
+    { id: "7604072002", district_id: "760407", name: "RAPPOANG" },
   ];
 
   async getProvinces(): Promise<Province[]> {

@@ -1,24 +1,25 @@
 import Link from "next/link";
 import { getCourierDashboardData } from "@/actions/courier-dashboard";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Clock,
-  FilePlus,
   ArrowRight,
   Package,
-  CalendarCheck,
   CheckCircle2,
   TrendingUp,
-  History,
   AlertCircle,
   Truck,
+  MapPin,
+  ChevronRight,
+  Plus,
+  Bike,
+  ShoppingBag,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "@/lib/utils";
 import { BiometricCard } from "@/components/courier/biometric-card";
 
 export const metadata = {
   title: "Dashboard Kurir — JetFood Polman",
+  description: "Pusat operasional harian kurir JetFood Polewali Mandar",
 };
 
 export default async function CourierDashboardPage() {
@@ -29,91 +30,76 @@ export default async function CourierDashboardPage() {
   const isSudahPulang = data.attendance.status === "SUDAH_PULANG";
 
   return (
-    <div className="space-y-5">
-      {/* 1. Greeting Banner */}
-      <div className="rounded-2xl bg-gradient-to-br from-red-600 via-red-600 to-slate-900 p-5 text-white shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-red-100">
-            {data.todayDateFormatted}
-          </span>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-xs">
-            {data.courierCode}
-          </span>
-        </div>
+    <div className="space-y-5 pb-8 font-sans">
+      {/* 1. TOP CURVED DARK HERO CARD (Aesthetic inspired by mobile delivery design) */}
+      <div className="rounded-3xl bg-slate-950 text-white p-5 sm:p-6 shadow-xl border border-slate-800 relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <h1 className="text-xl sm:text-2xl font-extrabold mt-1.5 leading-tight">
-          Halo, {data.courierName}!
-        </h1>
-
-        <div className="flex items-center gap-2 mt-2 text-xs text-red-100">
-          <Truck className="h-3.5 w-3.5" />
-          <span>
-            {data.vehicleType || "Sepeda Motor"}{" "}
-            {data.plateNumber && `• ${data.plateNumber}`}
-          </span>
-        </div>
-      </div>
-
-      {/* 2. Biometric Fingerprint Activation Card */}
-      <BiometricCard courierCode={data.courierCode} courierName={data.courierName} />
-
-      {/* 2. Today's Attendance Card */}
-      <Card className="border-slate-200 shadow-xs">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarCheck className="h-5 w-5 text-slate-700" />
-              <CardTitle className="text-base">Presensi Hari Ini</CardTitle>
+        {/* Profile Row */}
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            {/* Avatar circle with red border ring */}
+            <div className="h-12 w-12 rounded-full border-2 border-red-600 p-0.5 bg-slate-900 flex items-center justify-center shrink-0 shadow-md">
+              <div className="h-full w-full rounded-full bg-slate-800 flex items-center justify-center text-red-500 font-black text-lg">
+                {data.courierName.charAt(0).toUpperCase()}
+              </div>
             </div>
 
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 block tracking-wide uppercase">
+                Kurir Lapangan
+              </span>
+              <h1 className="text-base sm:text-lg font-black text-white leading-tight">
+                Halo, {data.courierName}! 👋
+              </h1>
+              <span className="text-[11px] font-mono text-red-400 font-bold">
+                {data.courierCode} {data.plateNumber ? `• ${data.plateNumber}` : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Live Status Pill */}
+          <div className="text-right">
             {isBelumAbsen && (
-              <Badge variant="danger" className="font-bold">
-                Belum Absen
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                <span>Belum Absen</span>
+              </span>
             )}
             {isSudahMasuk && (
-              <Badge variant="success" className="font-bold">
-                Sudah Absen Masuk
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Aktif Bertugas</span>
+              </span>
             )}
             {isSudahPulang && (
-              <Badge variant="info" className="font-bold">
-                Selesai (Pulang)
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold border border-blue-500/30">
+                <CheckCircle2 className="h-3 w-3 text-blue-400" />
+                <span>Selesai Pulang</span>
+              </span>
             )}
           </div>
-          <CardDescription className="text-xs">
-            Pencatatan waktu resmi presensi wilayah Polewali Mandar (WITA).
-          </CardDescription>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-4">
-          {/* Time Stamps Grid */}
-          <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Waktu Masuk
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5 block">
-                {data.attendance.clockInTime || "—"}
-              </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Waktu Pulang
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5 block">
-                {data.attendance.clockOutTime || "—"}
-              </span>
-            </div>
+        {/* Date & Polman Location Bar */}
+        <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 font-medium">
+            <MapPin className="h-3.5 w-3.5 text-red-500" />
+            <span>Kabupaten Polewali Mandar (WITA)</span>
           </div>
+          <span className="text-[11px] text-slate-400 font-mono">
+            {data.todayDateFormatted}
+          </span>
+        </div>
 
-          {/* Context-aware Absen Action Button */}
+        {/* Quick Action Buttons inside Dark Container */}
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
+          {/* Action 1: Presensi Button */}
           {isBelumAbsen && (
             <Link
               href="/courier/attendance"
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 transition-colors shadow-sm"
+              className="h-11 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md"
             >
               <Clock className="h-4 w-4" />
               <span>Absen Masuk Sekarang</span>
@@ -123,160 +109,188 @@ export default async function CourierDashboardPage() {
           {isSudahMasuk && (
             <Link
               href="/courier/attendance"
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
+              className="h-11 rounded-2xl bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-white flex items-center justify-center gap-2 text-xs font-bold transition-all border border-slate-700 shadow-md"
             >
-              <Clock className="h-4 w-4" />
-              <span>Absen Pulang</span>
+              <Clock className="h-4 w-4 text-emerald-400" />
+              <span>Absen Pulang (Selesai)</span>
             </Link>
           )}
 
           {isSudahPulang && (
             <Link
               href="/courier/attendance"
-              className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs font-semibold flex items-center justify-center gap-2"
+              className="h-11 rounded-2xl bg-slate-800/90 text-slate-300 hover:bg-slate-800 flex items-center justify-center gap-2 text-xs font-bold transition-all border border-slate-700"
             >
-              <CheckCircle2 className="h-4 w-4" />
-              <span>Presensi Hari Ini Selesai • Lihat Riwayat &rarr;</span>
+              <CheckCircle2 className="h-4 w-4 text-blue-400" />
+              <span>Presensi Selesai</span>
             </Link>
           )}
-        </CardContent>
-      </Card>
 
-      {/* 3. Primary Quick Action: Input Laporan Operasional */}
-      <Link
-        href="/courier/reports/new"
-        className="block group"
-      >
-        <Card className="border-red-200 bg-gradient-to-r from-red-50/70 to-rose-50/40 hover:border-red-300 transition-all shadow-xs cursor-pointer">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
-            <div className="flex items-center gap-3.5">
-              <div className="h-12 w-12 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                <FilePlus className="h-6 w-6" />
-              </div>
-              <div>
-                <span className="text-sm sm:text-base font-extrabold text-slate-900 block leading-tight">
-                  Input Laporan Harian
-                </span>
-                <span className="text-xs text-slate-500 mt-0.5 block">
-                  Catat rute keberangkatan, tujuan, order & omset
-                </span>
-              </div>
-            </div>
-
-            <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-red-600 shadow-2xs group-hover:translate-x-1 transition-transform">
-              <ArrowRight className="h-4 w-4" />
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
-
-      {/* 4. Today's Summary Metrics for This Courier */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="border-slate-200 shadow-xs">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-[10px] uppercase font-bold tracking-wider">
-                Order Hari Ini
-              </span>
-              <Package className="h-4 w-4 text-red-600" />
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-slate-900">
-              {formatNumber(data.todayStats.totalOrders)}{" "}
-              <span className="text-xs font-semibold text-slate-400">paket</span>
-            </div>
-            <span className="text-[11px] text-slate-500 block">
-              Dari {data.todayStats.reportCount} rute perjalanan
-            </span>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 shadow-xs">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-[10px] uppercase font-bold tracking-wider">
-                Omset Hari Ini
-              </span>
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div className="text-lg sm:text-xl font-extrabold text-slate-900 truncate">
-              {formatRupiah(data.todayStats.totalOmset)}
-            </div>
-            <span className="text-[11px] text-slate-500 block">
-              Tercatat pada sistem
-            </span>
-          </CardContent>
-        </Card>
+          {/* Action 2: Input Laporan Harian */}
+          <Link
+            href="/courier/reports/new"
+            className="h-11 rounded-2xl bg-white hover:bg-slate-100 active:scale-[0.98] text-slate-950 flex items-center justify-center gap-2 text-xs font-black transition-all shadow-md"
+          >
+            <Plus className="h-4 w-4 text-red-600" />
+            <span>Input Laporan Baru</span>
+          </Link>
+        </div>
       </div>
 
-      {/* 5. Laporan Terbaru (Recent Reports) */}
-      <Card className="border-slate-200 shadow-xs">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <History className="h-4 w-4 text-slate-700" />
-              Laporan Terbaru Saya
-            </CardTitle>
+      {/* 2. TODAY'S SUMMARY METRIC CARDS (White modern cards) */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Order Hari Ini */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[10px] uppercase font-bold tracking-wider">
+              Order Hari Ini
+            </span>
+            <div className="h-6 w-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+              <Package className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-slate-900">
+            {formatNumber(data.todayStats.totalOrders)}{" "}
+            <span className="text-xs font-semibold text-slate-400">paket</span>
+          </div>
+          <span className="text-[11px] text-slate-500 block truncate">
+            Dari {data.todayStats.reportCount} rute perjalanan
+          </span>
+        </div>
+
+        {/* Omset Hari Ini */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[10px] uppercase font-bold tracking-wider">
+              Omset Hari Ini
+            </span>
+            <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="text-lg sm:text-xl font-black text-slate-900 truncate">
+            {formatRupiah(data.todayStats.totalOmset)}
+          </div>
+          <span className="text-[11px] text-slate-500 block truncate">
+            Tercatat resmi di Polman
+          </span>
+        </div>
+      </div>
+
+      {/* 3. ACTIVE DELIVERIES & TODAY'S ROUTES (Styled like mockup cards) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+            <Truck className="h-3.5 w-3.5 text-red-600" />
+            <span>Pengantaran &amp; Rute Hari Ini</span>
+          </h2>
+          <Link
+            href="/courier/history"
+            className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-0.5"
+          >
+            <span>Semua</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {data.recentReports.length === 0 ? (
+          <div className="py-8 text-center rounded-2xl bg-white border border-slate-200 p-6 space-y-2.5 shadow-2xs">
+            <AlertCircle className="h-8 w-8 text-slate-300 mx-auto" />
+            <p className="text-xs font-semibold text-slate-600">
+              Belum ada laporan pengantaran yang diinput hari ini.
+            </p>
             <Link
-              href="/courier/history"
-              className="text-xs font-semibold text-red-600 hover:text-red-700"
+              href="/courier/reports/new"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition-all shadow-xs"
             >
-              Lihat Semua &rarr;
+              <Plus className="h-4 w-4" />
+              <span>Mulai Input Laporan Pertama</span>
             </Link>
           </div>
-          <CardDescription className="text-xs">
-            Aktivitas pengantaran terakhir yang Anda kirimkan.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          {data.recentReports.length === 0 ? (
-            <div className="py-8 text-center rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-2">
-              <AlertCircle className="h-6 w-6 text-slate-300 mx-auto" />
-              <p className="text-xs font-medium text-slate-500">
-                Belum ada laporan operasional yang diinput hari ini.
-              </p>
-              <Link
-                href="/courier/reports/new"
-                className="inline-flex text-xs font-semibold text-red-600 hover:underline"
+        ) : (
+          <div className="space-y-3">
+            {data.recentReports.map((report) => (
+              <div
+                key={report.id}
+                className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs transition-all space-y-3"
               >
-                Mulai input laporan pertama &rarr;
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {data.recentReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="p-3.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-900 leading-snug">
-                      {report.routeDisplay}
-                    </span>
-                    <Badge variant="neutral" className="text-[10px] shrink-0 font-semibold">
-                      {report.packageName}
-                    </Badge>
-                  </div>
+                {/* Header: Package Badge & Timestamp */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="rounded-full bg-red-100 text-red-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                    {report.packageName}
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    {report.createdAtFormatted}
+                  </span>
+                </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-50">
-                    <div className="flex items-center gap-3">
-                      <span>
-                        <strong className="text-slate-800">{report.orderCount}</strong> order
-                      </span>
-                      <span>
-                        <strong className="text-emerald-700">{formatRupiah(report.omset)}</strong>
-                      </span>
+                {/* Visual Route Indicator (Inspired by reference mockup dot-line-dot) */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    {/* Departure Node */}
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <div className="h-3 w-3 rounded-full border-2 border-red-600 bg-white shrink-0" />
+                      <div className="truncate">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">
+                          Asal
+                        </span>
+                        <span className="text-xs font-bold text-slate-800 truncate block">
+                          {report.originDisplay}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-400">
-                      {report.createdAtFormatted}
-                    </span>
+
+                    {/* Arrow / Connecting line */}
+                    <div className="text-slate-400 shrink-0 px-1">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+
+                    {/* Destination Node */}
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <div className="h-3 w-3 rounded-full bg-slate-900 shrink-0" />
+                      <div className="truncate">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">
+                          Tujuan
+                        </span>
+                        <span className="text-xs font-bold text-slate-800 truncate block">
+                          {report.destDisplay}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                {/* Metrics Row */}
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-600">
+                      <strong className="text-slate-900">{report.orderCount}</strong> order paket
+                    </span>
+                    {report.ojolCount > 0 && (
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <Bike className="h-3 w-3 text-red-600" />
+                        <span>{report.ojolCount} trip</span>
+                      </span>
+                    )}
+                    {report.jastipCount > 0 && (
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <ShoppingBag className="h-3 w-3 text-blue-600" />
+                        <span>{report.jastipCount} jastip</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-extrabold text-emerald-700">
+                    {formatRupiah(report.omset)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 4. SENSOR SIDIK JARI (BIOMETRIK HP) CARD */}
+      <BiometricCard courierCode={data.courierCode} courierName={data.courierName} />
     </div>
   );
 }

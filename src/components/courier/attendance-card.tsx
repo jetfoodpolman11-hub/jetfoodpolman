@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clockInAction, clockOutAction, type TodayAttendanceState } from "@/actions/attendance";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import {
   LogOut,
   Loader2,
   ShieldCheck,
+  MapPin,
+  Navigation,
 } from "lucide-react";
 
 interface AttendanceCardProps {
@@ -29,6 +31,8 @@ export function AttendanceCard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [notes, setNotes] = useState("");
+  const [location, setLocation] = useState("Kantor Hub JetFood Polman, Polewali");
+  const [isLocating, setIsLocating] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -38,10 +42,57 @@ export function AttendanceCard({
   const isSudahMasuk = initialState.status === "SUDAH_MASUK";
   const isSudahPulang = initialState.status === "SUDAH_PULANG";
 
+  // Auto-detect GPS location on mount if supported
+  useEffect(() => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude.toFixed(4);
+          const lng = pos.coords.longitude.toFixed(4);
+          setLocation(`GPS: ${lat}, ${lng} (Polewali Mandar)`);
+        },
+        () => {
+          // If denied, fallback gracefully
+          setLocation("Hub JetFood Polman, Polewali");
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
+
+  const handleDetectLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setFeedback({
+        type: "error",
+        message: "Perangkat ini tidak mendukung pendeteksian lokasi GPS.",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const lat = pos.coords.latitude.toFixed(5);
+        const lng = pos.coords.longitude.toFixed(5);
+        setLocation(`GPS: ${lat}, ${lng} (Polewali Mandar)`);
+      },
+      (err) => {
+        setIsLocating(false);
+        console.warn("GPS detection error:", err.message);
+        setFeedback({
+          type: "error",
+          message: "Tidak dapat mengakses GPS. Menggunakan lokasi default Polewali Mandar.",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   const handleClockIn = () => {
     setFeedback(null);
     startTransition(async () => {
-      const res = await clockInAction(notes);
+      const res = await clockInAction(notes, location);
       if (res.success) {
         setFeedback({
           type: "success",
@@ -61,7 +112,7 @@ export function AttendanceCard({
   const handleClockOut = () => {
     setFeedback(null);
     startTransition(async () => {
-      const res = await clockOutAction(notes);
+      const res = await clockOutAction(notes, location);
       if (res.success) {
         setFeedback({
           type: "success",
@@ -81,7 +132,7 @@ export function AttendanceCard({
   return (
     <Card className="border-slate-200 shadow-sm overflow-hidden">
       {/* Header Accent */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-4 text-white">
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-red-950 px-5 py-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-red-400" />
@@ -147,6 +198,33 @@ export function AttendanceCard({
           </div>
         </div>
 
+        {/* Location Detection Box */}
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-red-600" />
+              <span>Titik Lokasi Presensi</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={isLocating || isPending}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+            >
+              <Navigation className={`h-3 w-3 ${isLocating ? "animate-spin" : ""}`} />
+              <span>{isLocating ? "Mencari GPS..." : "Perbarui GPS"}</span>
+            </button>
+          </div>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            disabled={isPending || isSudahPulang}
+            placeholder="Lokasi absensi (contoh: Kantor Hub JetFood Polman)"
+            className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+          />
+        </div>
+
         {/* Timestamp Grid */}
         <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
           <div>
@@ -156,6 +234,12 @@ export function AttendanceCard({
             <span className="text-base sm:text-lg font-extrabold text-slate-900 mt-0.5 block">
               {initialState.clockInTime || "—"}
             </span>
+            {initialState.clockInLocation && (
+              <span className="text-[10px] text-slate-500 mt-0.5 block flex items-center gap-1">
+                <MapPin className="h-2.5 w-2.5 text-red-500 shrink-0" />
+                <span className="truncate">{initialState.clockInLocation}</span>
+              </span>
+            )}
             {initialState.clockInNotes && (
               <span className="text-[11px] text-slate-500 mt-1 block italic truncate" title={initialState.clockInNotes}>
                 &quot;{initialState.clockInNotes}&quot;
@@ -170,6 +254,12 @@ export function AttendanceCard({
             <span className="text-base sm:text-lg font-extrabold text-slate-900 mt-0.5 block">
               {initialState.clockOutTime || "—"}
             </span>
+            {initialState.clockOutLocation && (
+              <span className="text-[10px] text-slate-500 mt-0.5 block flex items-center gap-1">
+                <MapPin className="h-2.5 w-2.5 text-red-500 shrink-0" />
+                <span className="truncate">{initialState.clockOutLocation}</span>
+              </span>
+            )}
             {initialState.clockOutNotes && (
               <span className="text-[11px] text-slate-500 mt-1 block italic truncate" title={initialState.clockOutNotes}>
                 &quot;{initialState.clockOutNotes}&quot;
@@ -244,7 +334,7 @@ export function AttendanceCard({
               type="button"
               onClick={handleClockOut}
               disabled={isPending}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-800 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {isPending ? (
                 <>
@@ -277,7 +367,7 @@ export function AttendanceCard({
         <div className="flex items-start gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
           <span>
-            Waktu dan tanggal dicatat otomatis oleh server (WITA). Kurir tidak dapat memilih atau mengubah waktu secara manual.
+            Lokasi, waktu, dan hari/tanggal dicatat otomatis oleh server (WITA). Kurir tidak dapat memanipulasi waktu secara manual.
           </span>
         </div>
       </CardContent>

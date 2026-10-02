@@ -1,8 +1,8 @@
 import { requireCourier } from "@/lib/auth/guards";
 import Link from "next/link";
 import Image from "next/image";
+import { Clock, ClipboardList, Home, Plus, User } from "lucide-react";
 import { LogoutButton } from "@/components/shared/logout-button";
-import { Clock, FilePlus, History, Home } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -53,9 +53,9 @@ export default async function CourierLayout({
             </Link>
             <Link
               href="/courier/reports/new"
-              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 font-bold transition-colors"
             >
-              Input Laporan
+              + Input Laporan
             </Link>
             <Link
               href="/courier/history"
@@ -63,15 +63,24 @@ export default async function CourierLayout({
             >
               Riwayat
             </Link>
+            <Link
+              href="/courier/account"
+              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            >
+              Akun
+            </Link>
           </nav>
 
           <div className="flex items-center gap-2">
-            <div className="text-right hidden sm:block">
+            <Link
+              href="/courier/account"
+              className="text-right hidden sm:block hover:opacity-80 transition-opacity"
+            >
               <span className="text-xs font-semibold text-slate-900 block leading-tight">
                 {session.profile?.fullName || "Kurir"}
               </span>
               <span className="text-[10px] text-slate-500 font-medium">Kurir Lapangan</span>
-            </div>
+            </Link>
             <LogoutButton label="" showIcon={true} />
           </div>
         </div>
@@ -83,11 +92,11 @@ export default async function CourierLayout({
       </main>
 
       {/* Bottom Navigation Bar for Mobile Field Operators */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 sm:hidden shadow-lg">
-        <div className="max-w-lg mx-auto grid grid-cols-4 px-2 text-center">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-1.5 sm:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <div className="max-w-lg mx-auto grid grid-cols-5 items-center px-1 text-center">
           <Link
             href="/courier/dashboard"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-all"
           >
             <Home className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Beranda</span>
@@ -95,26 +104,36 @@ export default async function CourierLayout({
 
           <Link
             href="/courier/attendance"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-all"
           >
             <Clock className="h-5 w-5" />
-            <span className="text-[10px] mt-1 font-semibold">Absen</span>
+            <span className="text-[10px] mt-1 font-semibold">Absensi</span>
           </Link>
 
           <Link
             href="/courier/reports/new"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center -translate-y-4 group"
           >
-            <FilePlus className="h-5 w-5" />
-            <span className="text-[10px] mt-1 font-semibold">Laporan</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-600 text-white shadow-lg shadow-red-600/30 ring-4 ring-white group-hover:bg-red-700 group-active:scale-95 transition-all">
+              <Plus className="h-6 w-6 stroke-[2.5]" />
+            </div>
+            <span className="text-[10px] mt-1 font-bold text-red-600">Laporan</span>
           </Link>
 
           <Link
             href="/courier/history"
-            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-all"
           >
-            <History className="h-5 w-5" />
+            <ClipboardList className="h-5 w-5" />
             <span className="text-[10px] mt-1 font-semibold">Riwayat</span>
+          </Link>
+
+          <Link
+            href="/courier/account"
+            className="flex flex-col items-center justify-center py-1 text-slate-600 hover:text-red-600 active:scale-95 transition-all"
+          >
+            <User className="h-5 w-5" />
+            <span className="text-[10px] mt-1 font-semibold">Akun</span>
           </Link>
         </div>
       </nav>

@@ -17,6 +17,8 @@ export interface AttendanceRecord {
   clockOutTimeFormatted: string | null; // "17:15 WITA"
   clockInNotes: string | null;
   clockOutNotes: string | null;
+  clockInLocation?: string | null;
+  clockOutLocation?: string | null;
   status: "MASUK" | "PULANG";
   createdAt: string;
 }
@@ -28,6 +30,8 @@ export interface TodayAttendanceState {
   clockOutTime: string | null;
   clockInNotes: string | null;
   clockOutNotes: string | null;
+  clockInLocation?: string | null;
+  clockOutLocation?: string | null;
   status: "BELUM_ABSEN" | "SUDAH_MASUK" | "SUDAH_PULANG";
   statusLabel: string;
 }
@@ -50,6 +54,8 @@ interface MockAttendanceEntry {
   clock_out_time: string | null;
   clock_in_notes: string | null;
   clock_out_notes: string | null;
+  clock_in_location?: string | null;
+  clock_out_location?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -144,6 +150,8 @@ export async function getTodayAttendanceForCourier(
         clockOutTime: null,
         clockInNotes: null,
         clockOutNotes: null,
+        clockInLocation: null,
+        clockOutLocation: null,
         status: "BELUM_ABSEN",
         statusLabel: "Belum Absen",
       };
@@ -157,6 +165,8 @@ export async function getTodayAttendanceForCourier(
       clockOutTime: formatTimeWitaSync(existing.clock_out_time),
       clockInNotes: existing.clock_in_notes,
       clockOutNotes: existing.clock_out_notes,
+      clockInLocation: existing.clock_in_location || (existing.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar"),
+      clockOutLocation: existing.clock_out_location || (existing.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
       status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
       statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
     };
@@ -178,6 +188,8 @@ export async function getTodayAttendanceForCourier(
       clockOutTime: null,
       clockInNotes: null,
       clockOutNotes: null,
+      clockInLocation: null,
+      clockOutLocation: null,
       status: "BELUM_ABSEN",
       statusLabel: "Belum Absen",
     };
@@ -193,6 +205,8 @@ export async function getTodayAttendanceForCourier(
     clockOutTime: formatTimeWitaSync(data.clock_out_time),
     clockInNotes: data.clock_in_notes,
     clockOutNotes: data.clock_out_notes,
+    clockInLocation: data.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar",
+    clockOutLocation: data.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
     status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
     statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
   };
@@ -204,7 +218,8 @@ export async function getTodayAttendanceForCourier(
  * Strictly prevents double check-in on the same date.
  */
 export async function clockInAction(
-  notes?: string
+  notes?: string,
+  location?: string
 ): Promise<AttendanceActionResult> {
   const session = await requireCourier();
   const courierId = session.courier?.id;
@@ -220,6 +235,8 @@ export async function clockInAction(
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  const effectiveLocation = location?.trim() || "Polewali Mandar (WITA)";
 
   // Local Mock Handling
   if (isPlaceholderEnv) {
@@ -244,6 +261,8 @@ export async function clockInAction(
       clock_out_time: null,
       clock_in_notes: notes?.trim() || null,
       clock_out_notes: null,
+      clock_in_location: effectiveLocation,
+      clock_out_location: null,
       created_at: nowIso,
       updated_at: nowIso,
     };
@@ -257,7 +276,7 @@ export async function clockInAction(
 
     return {
       success: true,
-      message: `Absen masuk berhasil dicatat pada ${formatTimeWitaSync(nowIso)}.`,
+      message: `Absen masuk berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
     };
   }
 
@@ -279,12 +298,14 @@ export async function clockInAction(
     };
   }
 
+  const fullNotes = location ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim() : (notes?.trim() || null);
+
   // 2. Insert attendance row
   const { error } = await supabase.from("attendance").insert({
     courier_id: courierId,
     date: todayWita,
     clock_in_time: nowIso,
-    clock_in_notes: notes?.trim() || null,
+    clock_in_notes: fullNotes,
   });
 
   if (error) {
@@ -298,7 +319,7 @@ export async function clockInAction(
 
   return {
     success: true,
-    message: `Absen masuk berhasil dicatat pada ${formatTimeWitaSync(nowIso)}.`,
+    message: `Absen masuk berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
   };
 }
 
@@ -308,7 +329,8 @@ export async function clockInAction(
  * Strictly prevents double clock-out.
  */
 export async function clockOutAction(
-  notes?: string
+  notes?: string,
+  location?: string
 ): Promise<AttendanceActionResult> {
   const session = await requireCourier();
   const courierId = session.courier?.id;
@@ -324,6 +346,8 @@ export async function clockOutAction(
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  const effectiveLocation = location?.trim() || "Polewali Mandar (WITA)";
 
   // Local Mock Handling
   if (isPlaceholderEnv) {
@@ -347,6 +371,7 @@ export async function clockOutAction(
 
     existing.clock_out_time = nowIso;
     existing.clock_out_notes = notes?.trim() || null;
+    existing.clock_out_location = effectiveLocation;
     existing.updated_at = nowIso;
 
     revalidatePath("/courier/dashboard");
@@ -356,7 +381,7 @@ export async function clockOutAction(
 
     return {
       success: true,
-      message: `Absen pulang berhasil dicatat pada ${formatTimeWitaSync(nowIso)}.`,
+      message: `Absen pulang berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
     };
   }
 
@@ -385,12 +410,14 @@ export async function clockOutAction(
     };
   }
 
+  const fullNotes = location ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim() : (notes?.trim() || null);
+
   // 2. Update attendance row
   const { error: updateError } = await supabase
     .from("attendance")
     .update({
       clock_out_time: nowIso,
-      clock_out_notes: notes?.trim() || null,
+      clock_out_notes: fullNotes,
     })
     .eq("id", existing.id);
 
@@ -405,7 +432,7 @@ export async function clockOutAction(
 
   return {
     success: true,
-    message: `Absen pulang berhasil dicatat pada ${formatTimeWitaSync(nowIso)}.`,
+    message: `Absen pulang berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
   };
 }
 
@@ -437,6 +464,8 @@ export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]>
         clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
         clockInNotes: a.clock_in_notes,
         clockOutNotes: a.clock_out_notes,
+        clockInLocation: a.clock_in_location || (a.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar"),
+        clockOutLocation: a.clock_out_location || (a.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
         status: a.clock_out_time ? "PULANG" : "MASUK",
         createdAt: a.created_at,
       }));
@@ -468,6 +497,8 @@ export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]>
     clockOutTimeFormatted: formatTimeWitaSync(item.clock_out_time),
     clockInNotes: item.clock_in_notes,
     clockOutNotes: item.clock_out_notes,
+    clockInLocation: item.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar",
+    clockOutLocation: item.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
     status: item.clock_out_time ? "PULANG" : "MASUK",
     createdAt: item.created_at,
   }));
