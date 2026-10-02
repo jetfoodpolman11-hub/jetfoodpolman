@@ -79,6 +79,9 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
       courier: courierData,
     };
   } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) {
+      throw error;
+    }
     console.error("Error retrieving current session:", error);
     return null;
   }
