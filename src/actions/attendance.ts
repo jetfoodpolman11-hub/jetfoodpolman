@@ -574,6 +574,138 @@ export async function getAdminAttendanceList(options?: {
   });
 }
 
+export interface PaginatedAdminAttendance {
+  records: AttendanceRecord[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+}
+
+/**
+ * Fetch paginated attendance records for Admin monitoring with server-side pagination
+ */
+export async function getAdminAttendancePaginated(options?: {
+  date?: string;
+  courierId?: string;
+  page?: number;
+  perPage?: number;
+}): Promise<PaginatedAdminAttendance> {
+  await requireAdmin();
+
+  const page = Math.max(1, options?.page || 1);
+  const perPage = Math.max(1, Math.min(100, options?.perPage || 10));
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    let filtered = [...localMockAttendance];
+    if (options?.date && options.date !== "ALL") {
+      filtered = filtered.filter((a) => a.date === options.date);
+    }
+    if (options?.courierId && options.courierId !== "ALL") {
+      filtered = filtered.filter((a) => a.courier_id === options.courierId);
+    }
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    const offset = (page - 1) * perPage;
+    const paged = filtered.slice(offset, offset + perPage);
+
+    const records: AttendanceRecord[] = paged.map((a) => ({
+      id: a.id,
+      courierId: a.courier_id,
+      courierName: a.courier_name || "Kurir Lapangan Ali",
+      courierCode: a.courier_code || "JF-001",
+      date: a.date,
+      clockInTime: a.clock_in_time,
+      clockOutTime: a.clock_out_time,
+      clockInTimeFormatted: formatTimeWitaSync(a.clock_in_time) || "—",
+      clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
+      clockInNotes: a.clock_in_notes,
+      clockOutNotes: a.clock_out_notes,
+      status: a.clock_out_time ? "PULANG" : "MASUK",
+      createdAt: a.created_at,
+    }));
+
+    return { records, total, page, perPage, totalPages };
+  }
+
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("attendance")
+    .select(
+      `
+      id,
+      courier_id,
+      date,
+      clock_in_time,
+      clock_out_time,
+      clock_in_notes,
+      clock_out_notes,
+      created_at,
+      couriers:courier_id (
+        courier_code,
+        profiles:user_id ( full_name )
+      )
+    `,
+      { count: "exact" }
+    )
+    .order("date", { ascending: false })
+    .order("clock_in_time", { ascending: false });
+
+  if (options?.date && options.date !== "ALL") {
+    query = query.eq("date", options.date);
+  }
+
+  if (options?.courierId && options.courierId !== "ALL") {
+    query = query.eq("courier_id", options.courierId);
+  }
+
+  const offset = (page - 1) * perPage;
+  query = query.range(offset, offset + perPage - 1);
+
+  const { data, count, error } = await query;
+
+  if (error || !data) {
+    console.error("Error fetching paginated admin attendance:", error);
+    return { records: [], total: 0, page, perPage, totalPages: 1 };
+  }
+
+  const total = count ?? data.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+
+  const records: AttendanceRecord[] = data.map((item) => {
+    const courierObj = Array.isArray(item.couriers) ? item.couriers[0] : item.couriers;
+    const profileObj = courierObj?.profiles
+      ? Array.isArray(courierObj.profiles)
+        ? courierObj.profiles[0]
+        : courierObj.profiles
+      : null;
+
+    return {
+      id: item.id,
+      courierId: item.courier_id,
+      courierName: profileObj?.full_name || "Kurir",
+      courierCode: courierObj?.courier_code || "JF-KURIR",
+      date: item.date,
+      clockInTime: item.clock_in_time,
+      clockOutTime: item.clock_out_time,
+      clockInTimeFormatted: formatTimeWitaSync(item.clock_in_time) || "—",
+      clockOutTimeFormatted: formatTimeWitaSync(item.clock_out_time),
+      clockInNotes: item.clock_in_notes,
+      clockOutNotes: item.clock_out_notes,
+      status: item.clock_out_time ? "PULANG" : "MASUK",
+      createdAt: item.created_at,
+    };
+  });
+
+  return { records, total, page, perPage, totalPages };
+}
+
 /**
  * Server Action: Admin manual attendance correction with mandatory audit trail
  */

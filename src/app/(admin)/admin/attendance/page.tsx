@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/guards";
-import { getAdminAttendanceList } from "@/actions/attendance";
+import { getAdminAttendancePaginated } from "@/actions/attendance";
 import { getCouriers } from "@/actions/couriers";
 import { AttendanceFilter } from "@/components/admin/attendance-filter";
 import { AttendanceTable } from "@/components/admin/attendance-table";
@@ -17,7 +17,7 @@ export const metadata = {
 export default async function AdminAttendancePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ date?: string; courierId?: string }>;
+  searchParams?: Promise<{ date?: string; courierId?: string; page?: string }>;
 }) {
   await requireAdmin();
 
@@ -25,12 +25,15 @@ export default async function AdminAttendancePage({
   const todayWita = getWitaDateString(new Date());
   const selectedDate = params.date || todayWita;
   const selectedCourierId = params.courierId || "ALL";
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
 
-  const [couriers, records] = await Promise.all([
+  const [couriers, paginatedData] = await Promise.all([
     getCouriers(),
-    getAdminAttendanceList({
+    getAdminAttendancePaginated({
       date: selectedDate,
       courierId: selectedCourierId,
+      page: currentPage,
+      perPage: 10,
     }),
   ]);
 
@@ -52,8 +55,9 @@ export default async function AdminAttendancePage({
           },
         ];
 
-  // Metrics computation for selected date
-  const totalPresent = records.length;
+  // Records & metrics computation for selected date
+  const records = paginatedData.records;
+  const totalPresent = paginatedData.total;
   const completedClockOut = records.filter((r) => !!r.clockOutTime).length;
   const inField = records.filter((r) => !r.clockOutTime).length;
 
@@ -149,7 +153,13 @@ export default async function AdminAttendancePage({
       />
 
       {/* Attendance Interactive Table */}
-      <AttendanceTable records={records} />
+      <AttendanceTable
+        records={records}
+        page={paginatedData.page}
+        totalPages={paginatedData.totalPages}
+        total={paginatedData.total}
+        perPage={paginatedData.perPage}
+      />
     </div>
   );
 }

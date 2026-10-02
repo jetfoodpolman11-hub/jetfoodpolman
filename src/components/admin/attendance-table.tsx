@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { type AttendanceRecord } from "@/actions/attendance";
 import { AttendanceCorrectionModal } from "./attendance-correction-modal";
+import { Pagination } from "./pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit3, Clock, AlertCircle } from "lucide-react";
@@ -10,9 +11,19 @@ import { formatWitaDateFull } from "@/lib/date";
 
 interface AttendanceTableProps {
   records: AttendanceRecord[];
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  perPage?: number;
 }
 
-export function AttendanceTable({ records }: AttendanceTableProps) {
+export function AttendanceTable({
+  records,
+  page = 1,
+  totalPages = 1,
+  total = records.length,
+  perPage = 10,
+}: AttendanceTableProps) {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
 
   return (
@@ -158,6 +169,14 @@ export function AttendanceTable({ records }: AttendanceTableProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination Bar */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalRecords={total}
+          perPage={perPage}
+        />
       </div>
 
       {/* Manual Correction Modal */}

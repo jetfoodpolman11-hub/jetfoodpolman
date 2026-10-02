@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCourier, requireAuth } from "@/lib/auth/guards";
+import { requireCourier, requireAdmin, requireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getWitaDateString, formatWitaDateTime } from "@/lib/date";
 import {
@@ -796,5 +796,241 @@ export async function getDailyReportById(
     createdAtFormatted: formatWitaDateTime(new Date(data.created_at)),
     updatedAt: data.updated_at,
     isEditableByCourier: data.date === todayWita,
+  };
+}
+
+export interface AdminReportFilterOptions {
+  date?: string;
+  courierId?: string;
+  packageTypeId?: string;
+  routeQuery?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface AdminReportSummary {
+  totalReports: number;
+  totalOrders: number;
+  totalOmset: number;
+  totalOjolCount: number;
+  totalOjolAmount: number;
+  totalJastipCount: number;
+  totalJastipAmount: number;
+}
+
+export interface PaginatedAdminDailyReports {
+  reports: DailyReportRecord[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+  summary: AdminReportSummary;
+}
+
+/**
+ * Fetch all daily reports for Admin monitoring with server-side filters,
+ * summary aggregation, and pagination.
+ */
+export async function getAdminDailyReports(
+  options?: AdminReportFilterOptions
+): Promise<PaginatedAdminDailyReports> {
+  await requireAdmin();
+
+  const page = Math.max(1, options?.page || 1);
+  const perPage = Math.max(1, Math.min(100, options?.perPage || 10));
+  const date = options?.date && options.date !== "ALL" ? options.date : undefined;
+  const courierId = options?.courierId && options.courierId !== "ALL" ? options.courierId : undefined;
+  const packageTypeId = options?.packageTypeId && options.packageTypeId !== "ALL" ? options.packageTypeId : undefined;
+  const routeQuery = options?.routeQuery?.trim().toLowerCase() || undefined;
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    let filtered = [...localMockReports];
+
+    if (date) {
+      filtered = filtered.filter((r) => r.date === date);
+    }
+    if (courierId) {
+      filtered = filtered.filter((r) => r.courier_id === courierId);
+    }
+    if (packageTypeId) {
+      filtered = filtered.filter((r) => r.package_type_id === packageTypeId);
+    }
+    if (routeQuery) {
+      filtered = filtered.filter((r) => {
+        const originDesc = `${r.origin_village_name} ${r.origin_district_name} ${r.origin_regency_name}`.toLowerCase();
+        const destDesc = `${r.dest_village_name} ${r.dest_district_name} ${r.dest_regency_name}`.toLowerCase();
+        return originDesc.includes(routeQuery) || destDesc.includes(routeQuery);
+      });
+    }
+
+    const summary: AdminReportSummary = {
+      totalReports: filtered.length,
+      totalOrders: filtered.reduce((acc, r) => acc + (r.order_count || 0), 0),
+      totalOmset: filtered.reduce((acc, r) => acc + (r.omset || 0), 0),
+      totalOjolCount: filtered.reduce((acc, r) => acc + (r.ojol_count || 0), 0),
+      totalOjolAmount: filtered.reduce((acc, r) => acc + (r.ojol_amount || 0), 0),
+      totalJastipCount: filtered.reduce((acc, r) => acc + (r.jastip_count || 0), 0),
+      totalJastipAmount: filtered.reduce((acc, r) => acc + (r.jastip_amount || 0), 0),
+    };
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    const offset = (page - 1) * perPage;
+    const paged = filtered.slice(offset, offset + perPage);
+
+    const reports = paged.map((e) => mapMockToRecord(e));
+
+    return {
+      reports,
+      total,
+      page,
+      perPage,
+      totalPages,
+      summary,
+    };
+  }
+
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("daily_reports")
+    .select(
+      `
+      *,
+      package_types:package_type_id ( name ),
+      couriers:courier_id (
+        courier_code,
+        profiles:user_id ( full_name )
+      )
+    `,
+      { count: "exact" }
+    )
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (date) {
+    query = query.eq("date", date);
+  }
+  if (courierId) {
+    query = query.eq("courier_id", courierId);
+  }
+  if (packageTypeId) {
+    query = query.eq("package_type_id", packageTypeId);
+  }
+  if (routeQuery) {
+    query = query.or(
+      `origin_village_name.ilike.%${routeQuery}%,origin_district_name.ilike.%${routeQuery}%,origin_regency_name.ilike.%${routeQuery}%,dest_village_name.ilike.%${routeQuery}%,dest_district_name.ilike.%${routeQuery}%,dest_regency_name.ilike.%${routeQuery}%`
+    );
+  }
+
+  const offset = (page - 1) * perPage;
+  query = query.range(offset, offset + perPage - 1);
+
+  const { data, count, error } = await query;
+
+  if (error || !data) {
+    console.error("Error fetching admin daily reports:", error);
+    return {
+      reports: [],
+      total: 0,
+      page,
+      perPage,
+      totalPages: 1,
+      summary: {
+        totalReports: 0,
+        totalOrders: 0,
+        totalOmset: 0,
+        totalOjolCount: 0,
+        totalOjolAmount: 0,
+        totalJastipCount: 0,
+        totalJastipAmount: 0,
+      },
+    };
+  }
+
+  const total = count ?? data.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+
+  const reports: DailyReportRecord[] = data.map((item) => {
+    const pkg = Array.isArray(item.package_types)
+      ? item.package_types[0]
+      : item.package_types;
+
+    const courierObj = Array.isArray(item.couriers)
+      ? item.couriers[0]
+      : item.couriers;
+    const profileObj = courierObj?.profiles
+      ? Array.isArray(courierObj.profiles)
+        ? courierObj.profiles[0]
+        : courierObj.profiles
+      : null;
+
+    const origin: RegionSelection = {
+      provinceId: item.origin_province_id,
+      provinceName: item.origin_province_name,
+      regencyId: item.origin_regency_id,
+      regencyName: item.origin_regency_name,
+      districtId: item.origin_district_id,
+      districtName: item.origin_district_name,
+      villageId: item.origin_village_id,
+      villageName: item.origin_village_name,
+    };
+    const destination: RegionSelection = {
+      provinceId: item.dest_province_id,
+      provinceName: item.dest_province_name,
+      regencyId: item.dest_regency_id,
+      regencyName: item.dest_regency_name,
+      districtId: item.dest_district_id,
+      districtName: item.dest_district_name,
+      villageId: item.dest_village_id,
+      villageName: item.dest_village_name,
+    };
+
+    return {
+      id: item.id,
+      courierId: item.courier_id,
+      courierName: profileObj?.full_name || "Kurir",
+      courierCode: courierObj?.courier_code || "JF-KURIR",
+      date: item.date,
+      packageTypeId: item.package_type_id,
+      packageTypeName: pkg?.name || "Reguler",
+      origin,
+      destination,
+      routeDisplay: formatRouteDisplay(origin, destination),
+      orderCount: item.order_count,
+      omset: Number(item.omset) || 0,
+      ojolCount: item.ojol_count,
+      ojolAmount: Number(item.ojol_amount) || 0,
+      jastipCount: item.jastip_count,
+      jastipAmount: Number(item.jastip_amount) || 0,
+      notes: item.notes,
+      createdAt: item.created_at,
+      createdAtFormatted: formatWitaDateTime(new Date(item.created_at)),
+      updatedAt: item.updated_at,
+      isEditableByCourier: false,
+    };
+  });
+
+  const summary: AdminReportSummary = {
+    totalReports: total,
+    totalOrders: reports.reduce((acc, r) => acc + r.orderCount, 0),
+    totalOmset: reports.reduce((acc, r) => acc + r.omset, 0),
+    totalOjolCount: reports.reduce((acc, r) => acc + r.ojolCount, 0),
+    totalOjolAmount: reports.reduce((acc, r) => acc + r.ojolAmount, 0),
+    totalJastipCount: reports.reduce((acc, r) => acc + r.jastipCount, 0),
+    totalJastipAmount: reports.reduce((acc, r) => acc + r.jastipAmount, 0),
+  };
+
+  return {
+    reports,
+    total,
+    page,
+    perPage,
+    totalPages,
+    summary,
   };
 }

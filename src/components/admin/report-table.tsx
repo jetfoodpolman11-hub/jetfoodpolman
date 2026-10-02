@@ -1,0 +1,189 @@
+"use client";
+
+import Link from "next/link";
+import { type DailyReportRecord } from "@/actions/daily-reports";
+import { Pagination } from "./pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatRupiah } from "@/lib/utils";
+import { formatWitaDateFull } from "@/lib/date";
+import {
+  Eye,
+  AlertCircle,
+  MapPin,
+  Bike,
+  ShoppingBag,
+} from "lucide-react";
+
+interface ReportTableProps {
+  reports: DailyReportRecord[];
+  page: number;
+  totalPages: number;
+  total: number;
+  perPage: number;
+}
+
+export function ReportTable({
+  reports,
+  page,
+  totalPages,
+  total,
+  perPage,
+}: ReportTableProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <th className="py-3 px-4">Tanggal</th>
+              <th className="py-3 px-4">Kurir</th>
+              <th className="py-3 px-4">Rute Perjalanan (Asal → Tujuan)</th>
+              <th className="py-3 px-4">Paket</th>
+              <th className="py-3 px-4 text-center">Order</th>
+              <th className="py-3 px-4 text-right">Omset</th>
+              <th className="py-3 px-4">Ojol &amp; Jastip</th>
+              <th className="py-3 px-4 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {reports.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-14 text-center text-slate-500">
+                  <div className="max-w-xs mx-auto space-y-2">
+                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                      <AlertCircle className="h-6 w-6" />
+                    </div>
+                    <p className="font-bold text-sm text-slate-800">
+                      Tidak ada laporan ditemukan
+                    </p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Tidak ada data laporan operasional yang cocok dengan kriteria filter saat ini.
+                    </p>
+                    <div className="pt-2">
+                      <Link href="/admin/reports">
+                        <Button variant="outline" size="sm" className="text-xs">
+                          Hapus Filter
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              reports.map((item) => {
+                const hasOjol = item.ojolCount > 0;
+                const hasJastip = item.jastipCount > 0;
+
+                return (
+                  <tr
+                    key={item.id}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
+                    {/* 1. Date */}
+                    <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
+                      {formatWitaDateFull(item.date)}
+                    </td>
+
+                    {/* 2. Courier */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-[11px] shrink-0">
+                          {item.courierName
+                            ? item.courierName.slice(0, 2).toUpperCase()
+                            : "KR"}
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900 block leading-tight">
+                            {item.courierName || "Kurir"}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400 block">
+                            {item.courierCode || "JF-KURIR"}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* 3. Route Display: Origin -> Destination */}
+                    <td className="py-3.5 px-4 max-w-xs">
+                      <div className="flex items-start gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-orange-600 shrink-0 mt-0.5" />
+                        <span className="font-semibold text-slate-900 leading-tight">
+                          {item.routeDisplay}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* 4. Package Type */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <Badge variant="neutral" className="text-[10px] font-bold">
+                        {item.packageTypeName}
+                      </Badge>
+                    </td>
+
+                    {/* 5. Order Count */}
+                    <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 whitespace-nowrap">
+                      {item.orderCount}
+                    </td>
+
+                    {/* 6. Omset */}
+                    <td className="py-3.5 px-4 text-right font-extrabold text-emerald-700 whitespace-nowrap">
+                      {formatRupiah(item.omset)}
+                    </td>
+
+                    {/* 7. Ojol & Jastip */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {hasOjol && (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200/60 mr-1">
+                            <Bike className="h-3 w-3" />
+                            <span>
+                              {item.ojolCount}x ({formatRupiah(item.ojolAmount)})
+                            </span>
+                          </div>
+                        )}
+                        {hasJastip && (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200/60">
+                            <ShoppingBag className="h-3 w-3" />
+                            <span>
+                              {item.jastipCount}x ({formatRupiah(item.jastipAmount)})
+                            </span>
+                          </div>
+                        )}
+                        {!hasOjol && !hasJastip && (
+                          <span className="text-slate-400 italic text-[11px]">—</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* 8. Action: View Detail */}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <Link href={`/admin/reports/${item.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 text-slate-700 hover:text-slate-900 text-xs font-semibold h-8"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Detail</span>
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Server-Side Pagination Bar */}
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalRecords={total}
+        perPage={perPage}
+      />
+    </div>
+  );
+}

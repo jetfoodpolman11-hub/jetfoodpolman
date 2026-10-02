@@ -110,7 +110,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Quick Access Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Presensi */}
         <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-white shadow-xs">
           <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
             <div>
@@ -125,17 +126,39 @@ export default async function AdminDashboardPage() {
               href="/admin/attendance"
               className="inline-flex items-center justify-between px-4 py-2 rounded-lg bg-slate-900 text-xs sm:text-sm font-semibold text-white hover:bg-slate-800 transition-colors shadow-xs"
             >
-              <span>Buka Presensi Kurir</span>
+              <span>Buka Presensi</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </CardContent>
         </Card>
 
+        {/* Laporan Operasional */}
         <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-white shadow-xs">
           <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Kelola Data Kurir Lapangan
+                Monitoring Laporan Operasional
+              </h2>
+              <p className="text-xs text-slate-600 mt-1">
+                Pantau laporan harian kurir, rute, omset, jumlah order paket, serta rekapan ojol/jastip.
+              </p>
+            </div>
+            <Link
+              href="/admin/reports"
+              className="inline-flex items-center justify-between px-4 py-2 rounded-lg bg-orange-600 text-xs sm:text-sm font-semibold text-white hover:bg-orange-700 transition-colors shadow-xs"
+            >
+              <span>Buka Laporan</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Manajemen Kurir */}
+        <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-white shadow-xs">
+          <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Kelola Data Kurir
               </h2>
               <p className="text-xs text-slate-600 mt-1">
                 Tambah kurir baru, perbarui data operasional, kelola status aktif/nonaktif, dan reset kredensial.
@@ -143,9 +166,9 @@ export default async function AdminDashboardPage() {
             </div>
             <Link
               href="/admin/couriers"
-              className="inline-flex items-center justify-between px-4 py-2 rounded-lg bg-orange-600 text-xs sm:text-sm font-semibold text-white hover:bg-orange-700 transition-colors shadow-xs"
+              className="inline-flex items-center justify-between px-4 py-2 rounded-lg bg-slate-800 text-xs sm:text-sm font-semibold text-white hover:bg-slate-900 transition-colors shadow-xs"
             >
-              <span>Buka Manajemen Kurir</span>
+              <span>Buka Kurir</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </CardContent>
