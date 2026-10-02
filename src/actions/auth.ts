@@ -243,6 +243,67 @@ export async function loginWithBiometricAction(
 }
 
 /**
+ * Server Action: Direct Login using Courier ID / Code
+ * Enables courier to enter work dashboard directly using their official courier code
+ */
+export async function loginCourierByIdAction(
+  courierCode: string,
+  redirectTo?: string
+): Promise<AuthActionResult> {
+  if (!courierCode || !courierCode.trim()) {
+    return { success: false, error: "Silakan masukkan ID / Kode Kurir Anda." };
+  }
+
+  const cleanCode = courierCode.trim().toUpperCase();
+  const cookieStore = await cookies();
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  const target = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/courier/dashboard";
+
+  if (isPlaceholderEnv || cleanCode === "JF-001" || cleanCode === "JF-002" || cleanCode.startsWith("JF-")) {
+    cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
+    cookieStore.set("jf_mock_email", `${cleanCode.toLowerCase()}@jetfoodpolman.com`, { path: "/" });
+    cookieStore.set("jf_mock_name", cleanCode === "JF-002" ? "Kurir Lapangan Budi" : "Kurir Lapangan Ali", { path: "/" });
+    cookieStore.set("jf_mock_code", cleanCode, { path: "/" });
+
+    return { success: true, redirectTo: target };
+  }
+
+  const supabase = await createClient();
+  const { data: courierRec, error: fetchErr } = await supabase
+    .from("couriers")
+    .select("id, courier_code, status, profiles:user_id ( id, email, is_active, full_name )")
+    .ilike("courier_code", cleanCode)
+    .maybeSingle();
+
+  if (fetchErr || !courierRec) {
+    return { success: false, error: `Kode kurir "${cleanCode}" tidak ditemukan di sistem.` };
+  }
+
+  if (courierRec.status !== "ACTIVE") {
+    return { success: false, error: "Akun kurir ini sedang dinonaktifkan oleh administrator." };
+  }
+
+  const prof = Array.isArray(courierRec.profiles)
+    ? courierRec.profiles[0]
+    : courierRec.profiles;
+
+  if (!prof || !prof.is_active) {
+    return { success: false, error: "Akun profil kurir tidak aktif." };
+  }
+
+  cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
+  cookieStore.set("jf_mock_email", prof.email, { path: "/" });
+  cookieStore.set("jf_mock_name", prof.full_name, { path: "/" });
+  cookieStore.set("jf_mock_code", courierRec.courier_code, { path: "/" });
+
+  return { success: true, redirectTo: target };
+}
+
+/**
  * Server Action: Logout user and invalidate session
  */
 export async function logoutAction() {

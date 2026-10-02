@@ -21,16 +21,24 @@ export async function proxy(request: NextRequest) {
 
     const isAdminRoute = path.startsWith("/admin");
     const isCourierRoute = path.startsWith("/courier");
+    const isAdminLoginRoute = path === "/admin/login" || path === "/admin";
     const isLoginRoute = path === "/login";
 
-    // If unauthenticated user accesses protected routes
-    if ((isAdminRoute || isCourierRoute) && !user) {
-      const loginUrl = new URL("/login", request.url);
+    // If unauthenticated user accesses protected admin routes (not login itself)
+    if (isAdminRoute && !isAdminLoginRoute && !user) {
+      const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("redirectTo", path);
       return NextResponse.redirect(loginUrl);
     }
 
-    // If authenticated user visits login page, redirect to home
+    // If unauthenticated user accesses protected courier routes
+    if (isCourierRoute && !user) {
+      const loginUrl = new URL("/", request.url);
+      loginUrl.searchParams.set("redirectTo", path);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // If authenticated user visits login page
     if (isLoginRoute && user) {
       return NextResponse.redirect(new URL("/", request.url));
     }
