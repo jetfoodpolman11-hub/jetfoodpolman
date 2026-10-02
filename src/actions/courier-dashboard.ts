@@ -3,15 +3,9 @@
 import { requireCourier } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getWitaDateString, formatWitaDateFull, formatWitaDateTime } from "@/lib/date";
+import { getTodayAttendanceForCourier, type TodayAttendanceState } from "@/actions/attendance";
 
-export interface TodayAttendanceState {
-  hasClockedIn: boolean;
-  hasClockedOut: boolean;
-  clockInTime: string | null;
-  clockOutTime: string | null;
-  status: "BELUM_ABSEN" | "SUDAH_MASUK" | "SUDAH_PULANG";
-  statusLabel: string;
-}
+export type { TodayAttendanceState };
 
 export interface RecentReportItem {
   id: string;
@@ -56,6 +50,19 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
   const plateNumber = session.courier?.plateNumber || null;
   const courierId = session.courier?.id;
 
+  const attendanceState = courierId
+    ? await getTodayAttendanceForCourier(courierId)
+    : {
+        hasClockedIn: false,
+        hasClockedOut: false,
+        clockInTime: null,
+        clockOutTime: null,
+        clockInNotes: null,
+        clockOutNotes: null,
+        status: "BELUM_ABSEN" as const,
+        statusLabel: "Belum Absen",
+      };
+
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
@@ -68,14 +75,7 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
       vehicleType,
       plateNumber,
       todayDateFormatted: todayFormatted,
-      attendance: {
-        hasClockedIn: false,
-        hasClockedOut: false,
-        clockInTime: null,
-        clockOutTime: null,
-        status: "BELUM_ABSEN",
-        statusLabel: "Belum Absen",
-      },
+      attendance: attendanceState,
       recentReports: [
         {
           id: "demo-report-1",
@@ -114,52 +114,7 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
 
   const supabase = await createClient();
 
-  // 1. Fetch Today's Attendance for THIS courier
-  const { data: attendanceData } = await supabase
-    .from("attendance")
-    .select("clock_in_time, clock_out_time")
-    .eq("courier_id", courierId)
-    .eq("date", todayWita)
-    .maybeSingle();
-
-  let attendanceState: TodayAttendanceState = {
-    hasClockedIn: false,
-    hasClockedOut: false,
-    clockInTime: null,
-    clockOutTime: null,
-    status: "BELUM_ABSEN",
-    statusLabel: "Belum Absen",
-  };
-
-  if (attendanceData) {
-    const hasIn = !!attendanceData.clock_in_time;
-    const hasOut = !!attendanceData.clock_out_time;
-
-    attendanceState = {
-      hasClockedIn: hasIn,
-      hasClockedOut: hasOut,
-      clockInTime: hasIn
-        ? new Intl.DateTimeFormat("id-ID", {
-            timeZone: "Asia/Makassar",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }).format(new Date(attendanceData.clock_in_time)) + " WITA"
-        : null,
-      clockOutTime: hasOut
-        ? new Intl.DateTimeFormat("id-ID", {
-            timeZone: "Asia/Makassar",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }).format(new Date(attendanceData.clock_out_time!)) + " WITA"
-        : null,
-      status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
-      statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
-    };
-  }
-
-  // 2. Fetch Recent Reports submitted by THIS courier only (RLS enforced)
+  // Fetch Recent Reports submitted by THIS courier only (RLS enforced)
   const { data: reportsData } = await supabase
     .from("daily_reports")
     .select(`

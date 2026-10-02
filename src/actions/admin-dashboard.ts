@@ -17,8 +17,30 @@ export interface AdminDashboardStats {
  */
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   await requireAdmin();
-  const supabase = await createClient();
   const todayWita = getWitaDateString(new Date());
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const { getAdminAttendanceList } = await import("@/actions/attendance");
+    const todayList = await getAdminAttendanceList({ date: todayWita });
+    const present = todayList.length;
+    const total = 3;
+    const active = 3;
+    const notPresent = Math.max(0, active - present);
+
+    return {
+      totalCouriers: total,
+      activeCouriers: active,
+      presentToday: present,
+      notPresentToday: notPresent,
+      todayWita,
+    };
+  }
+
+  const supabase = await createClient();
 
   // 1. Total couriers
   const { count: totalCouriers, error: totalErr } = await supabase

@@ -127,10 +127,13 @@ export default async function CourierDashboardPage() {
           )}
 
           {isSudahPulang && (
-            <div className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold flex items-center justify-center gap-2">
+            <Link
+              href="/courier/attendance"
+              className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs font-semibold flex items-center justify-center gap-2"
+            >
               <CheckCircle2 className="h-4 w-4" />
-              <span>Presensi Masuk & Pulang Lengkap</span>
-            </div>
+              <span>Presensi Hari Ini Selesai • Lihat Riwayat &rarr;</span>
+            </Link>
           )}
         </CardContent>
       </Card>
