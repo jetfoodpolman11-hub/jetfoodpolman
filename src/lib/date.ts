@@ -28,14 +28,14 @@ export function getWitaTimeString(date: Date = new Date()): string {
 
 /**
  * Format full Indonesian date in WITA timezone
- * Example: "Jumat, 02 Oktober 2026"
+ * Example: "Sabtu, 3 Oktober 2026"
  */
 export function formatWitaDateFull(input: string | Date): string {
   const date = typeof input === "string" ? new Date(input) : input;
   return new Intl.DateTimeFormat("id-ID", {
     timeZone: DEFAULT_TIMEZONE,
     weekday: "long",
-    day: "2-digit",
+    day: "numeric",
     month: "long",
     year: "numeric",
   }).format(date);

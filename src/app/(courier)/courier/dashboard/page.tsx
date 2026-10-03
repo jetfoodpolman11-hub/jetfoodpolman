@@ -31,7 +31,8 @@ export default async function CourierDashboardPage() {
   return (
     <div className="space-y-6 pb-8 font-sans">
       {/* 1. TOP CURVED RED HERO BANNER (Matches reference mockup 1:1) */}
-      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[44px] px-7 pt-9 pb-12 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl">
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-7 pt-9 pb-8 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl">
+        {/* Top Row: Avatar + Greeting & Courier Code / Plate */}
         <div className="flex items-center gap-5">
           {/* Circular Courier Portrait Avatar */}
           <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md bg-white/10">
@@ -46,15 +47,46 @@ export default async function CourierDashboardPage() {
             />
           </div>
 
-          {/* Greeting Text */}
-          <div>
+          {/* Greeting Text + Code & Plate */}
+          <div className="min-w-0 flex-1">
             <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/95 block">
-              KURIR JETFOOD
+              KURIR JETFOOD POLMAN
             </span>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-none mt-1.5">
-              Halo {greetingName}
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight mt-0.5 truncate">
+              Halo, {greetingName}
             </h1>
+            <div className="flex items-center flex-wrap gap-x-6 gap-y-1 mt-2.5 text-xs sm:text-sm font-bold text-white/95 tracking-wide uppercase">
+              <span>{data.courierCode}</span>
+              <span>{data.plateNumber || "-"}</span>
+            </div>
           </div>
+        </div>
+
+        {/* Middle Row: Kabupaten Polewali Mandar & Current Date */}
+        <div className="mt-7 flex items-start justify-between gap-4">
+          <div className="text-sm sm:text-base font-bold text-white leading-snug">
+            <span className="block">Kabupaten</span>
+            <span className="block">Polewali Mandar</span>
+          </div>
+          <div className="text-sm sm:text-base font-bold text-white text-right leading-snug pt-0.5">
+            {data.todayDateFormatted}
+          </div>
+        </div>
+
+        {/* Bottom Row: Quick Action Buttons (ABSENSI & INPUT LAPORAN) */}
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:gap-5">
+          <Link
+            href="/courier/attendance"
+            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all"
+          >
+            ABSENSI
+          </Link>
+          <Link
+            href="/courier/reports/new"
+            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all"
+          >
+            INPUT LAPORAN
+          </Link>
         </div>
       </div>
 
