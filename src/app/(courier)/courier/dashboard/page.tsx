@@ -11,6 +11,10 @@ import {
   Plus,
   Bike,
   ShoppingBag,
+  MapPin,
+  Clock,
+  CalendarCheck,
+  FilePlus,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "@/lib/utils";
 import { BiometricCard } from "@/components/courier/biometric-card";
@@ -30,9 +34,9 @@ export default async function CourierDashboardPage() {
 
   return (
     <div className="space-y-6 pb-8 font-sans">
-      {/* 1. TOP CURVED RED HERO BANNER (Matches reference mockup 1:1) */}
-      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-8 pb-8 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7 sm:pt-9">
-        {/* Top Row: Avatar + Greeting & Courier Code / Plate */}
+      {/* 1. TOP CURVED RED HERO BANNER */}
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-8 pb-8 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7 sm:pt-9">
+        {/* Top Row: Avatar + Greeting & Plate Number */}
         <div className="flex items-center gap-4 sm:gap-5">
           {/* Circular Courier Portrait Avatar */}
           <div className="h-20 w-20 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md bg-white/10">
@@ -47,7 +51,7 @@ export default async function CourierDashboardPage() {
             />
           </div>
 
-          {/* Greeting Text + Code & Plate */}
+          {/* Greeting Text + Plate Number Only */}
           <div className="min-w-0 flex-1">
             <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-white/95 block">
               KURIR JETFOOD POLMAN
@@ -63,37 +67,42 @@ export default async function CourierDashboardPage() {
             >
               Halo, {greetingName}
             </h1>
-            <div className="flex items-center flex-wrap gap-x-4 sm:gap-x-6 gap-y-1 mt-2 text-xs sm:text-sm font-bold text-white/95 tracking-wide uppercase">
-              <span>{data.courierCode}</span>
+            <div className="mt-2 text-xs sm:text-sm font-bold text-white/95 tracking-wide uppercase">
               <span>{data.plateNumber || "-"}</span>
             </div>
           </div>
         </div>
 
-        {/* Middle Row: Kabupaten Polewali Mandar & Current Date */}
+        {/* Middle Row: Kabupaten Polewali Mandar (with Location Icon) & Date (with Time Icon) */}
         <div className="mt-6 sm:mt-7 flex items-start justify-between gap-3">
-          <div className="text-xs sm:text-base font-bold text-white leading-snug">
-            <span className="block">Kabupaten</span>
-            <span className="block">Polewali Mandar</span>
+          <div className="flex items-start gap-2 text-xs sm:text-base font-bold text-white leading-snug">
+            <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-white/95 shrink-0 mt-0.5" />
+            <div>
+              <span className="block">Kabupaten</span>
+              <span className="block">Polewali Mandar</span>
+            </div>
           </div>
-          <div className="text-xs sm:text-base font-bold text-white text-right leading-snug pt-0.5">
-            {data.todayDateFormatted}
+          <div className="flex items-center gap-1.5 text-xs sm:text-base font-bold text-white text-right leading-snug pt-0.5">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white/95 shrink-0" />
+            <span>{data.todayDateFormatted}</span>
           </div>
         </div>
 
-        {/* Bottom Row: Quick Action Buttons (ABSENSI & INPUT LAPORAN) */}
+        {/* Bottom Row: Quick Action Buttons with Icons & 3D Elevated Drop Shadow */}
         <div className="mt-5 grid grid-cols-2 gap-3.5 sm:gap-5">
           <Link
             href="/courier/attendance"
-            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all whitespace-nowrap"
+            className="flex h-11 sm:h-12 items-center justify-center gap-2 rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-[0_8px_18px_rgba(0,0,0,0.28),0_3px_6px_rgba(0,0,0,0.18)] border-b-[3px] border-slate-200/90 hover:bg-slate-50 active:translate-y-0.5 active:shadow-[0_3px_8px_rgba(0,0,0,0.22)] transition-all whitespace-nowrap"
           >
-            ABSENSI
+            <CalendarCheck className="h-4 w-4 text-[#DC0000] shrink-0 stroke-[2.5]" />
+            <span>ABSENSI</span>
           </Link>
           <Link
             href="/courier/reports/new"
-            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all whitespace-nowrap"
+            className="flex h-11 sm:h-12 items-center justify-center gap-2 rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-[0_8px_18px_rgba(0,0,0,0.28),0_3px_6px_rgba(0,0,0,0.18)] border-b-[3px] border-slate-200/90 hover:bg-slate-50 active:translate-y-0.5 active:shadow-[0_3px_8px_rgba(0,0,0,0.22)] transition-all whitespace-nowrap"
           >
-            INPUT LAPORAN
+            <FilePlus className="h-4 w-4 text-[#DC0000] shrink-0 stroke-[2.5]" />
+            <span>INPUT LAPORAN</span>
           </Link>
         </div>
       </div>

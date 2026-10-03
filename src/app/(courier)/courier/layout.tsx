@@ -19,7 +19,7 @@ export default async function CourierLayout({
   const session = await requireCourier();
 
   return (
-    <div className="min-h-screen bg-slate-50/60 flex flex-col font-sans pb-24 sm:pb-8">
+    <div className="min-h-screen bg-[#f0f0f0] flex flex-col font-sans pb-24 sm:pb-8">
       {/* Top Header (Red Signature Bar) */}
       <header className="sticky top-0 z-40 bg-[#DC0000] border-b border-red-900/25 shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
         <div className="mx-auto flex h-16 max-w-lg items-center justify-between px-5 sm:max-w-3xl lg:max-w-4xl">
