@@ -1,13 +1,13 @@
 /**
- * Environment Variable Helper & Validation
- * Provides typed and safe access to application environment variables.
+ * Public Environment Variable Helper & Validation
+ * Provides typed and safe access ONLY to public (NEXT_PUBLIC_*) application environment variables.
+ * Server-only secrets are strictly isolated inside src/lib/supabase/admin.ts.
  */
 
 export const env = {
   supabase: {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   },
   app: {
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",

@@ -240,8 +240,39 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT id FROM public.couriers WHERE user_id = auth.uid();
+  SELECT c.id
+  FROM public.couriers c
+  INNER JOIN public.profiles p ON p.id = c.user_id
+  WHERE c.user_id = auth.uid()
+    AND c.status = 'ACTIVE'
+    AND p.is_active = true
+    AND p.role = 'KURIR';
 $$;
+
+-- Trigger to strictly prevent non-admin privilege escalation on profiles
+CREATE OR REPLACE FUNCTION public.prevent_profile_privilege_escalation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    IF NEW.role IS DISTINCT FROM OLD.role
+       OR NEW.is_active IS DISTINCT FROM OLD.is_active
+       OR NEW.email IS DISTINCT FROM OLD.email THEN
+      RAISE EXCEPTION 'Privilege escalation denied: only ADMIN can modify role, active status, or email.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_prevent_profile_privilege_escalation ON public.profiles;
+CREATE TRIGGER trigger_prevent_profile_privilege_escalation
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_profile_privilege_escalation();
 
 -- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -261,20 +292,12 @@ CREATE POLICY "Admin full access on profiles"
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- User can view own profile
+-- User can view own profile (Read-only for Couriers; profile management is Admin-only)
 CREATE POLICY "Users can view own profile"
   ON public.profiles
   FOR SELECT
   TO authenticated
   USING (id = auth.uid());
-
--- User can update limited fields on own profile
-CREATE POLICY "Users can update own profile"
-  ON public.profiles
-  FOR UPDATE
-  TO authenticated
-  USING (id = auth.uid())
-  WITH CHECK (id = auth.uid());
 
 -- ------------------------------------------------------------------------------
 -- RLS POLICIES: COURIERS
@@ -330,20 +353,29 @@ CREATE POLICY "Couriers can view own attendance"
   TO authenticated
   USING (courier_id = public.get_auth_courier_id());
 
--- Courier can insert their own clock-in
+-- Courier can insert their own clock-in on the current WITA operational date
 CREATE POLICY "Couriers can clock in"
   ON public.attendance
   FOR INSERT
   TO authenticated
-  WITH CHECK (courier_id = public.get_auth_courier_id());
+  WITH CHECK (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  );
 
--- Courier can update their own clock-out
+-- Courier can update their own clock-out on the current WITA operational date
 CREATE POLICY "Couriers can clock out"
   ON public.attendance
   FOR UPDATE
   TO authenticated
-  USING (courier_id = public.get_auth_courier_id())
-  WITH CHECK (courier_id = public.get_auth_courier_id());
+  USING (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  )
+  WITH CHECK (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  );
 
 -- ------------------------------------------------------------------------------
 -- RLS POLICIES: DAILY_REPORTS
@@ -363,19 +395,28 @@ CREATE POLICY "Couriers can view own daily reports"
   TO authenticated
   USING (courier_id = public.get_auth_courier_id());
 
--- Courier can insert their own daily operational report
+-- Courier can insert their own daily operational report on the current WITA operational date
 CREATE POLICY "Couriers can insert own daily reports"
   ON public.daily_reports
   FOR INSERT
   TO authenticated
-  WITH CHECK (courier_id = public.get_auth_courier_id());
+  WITH CHECK (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  );
 
--- Courier can update their own report on the same operational date
+-- Courier can update their own report on the same WITA operational date
 CREATE POLICY "Couriers can update own daily reports"
   ON public.daily_reports
   FOR UPDATE
   TO authenticated
-  USING (courier_id = public.get_auth_courier_id())
-  WITH CHECK (courier_id = public.get_auth_courier_id());
+  USING (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  )
+  WITH CHECK (
+    courier_id = public.get_auth_courier_id()
+    AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
+  );
 
--- Note: Couriers are strictly NOT granted DELETE permission on daily_reports.
+-- Note: Couriers are strictly NOT granted DELETE permission on daily_reports or attendance.

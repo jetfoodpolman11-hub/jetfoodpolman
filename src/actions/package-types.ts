@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireAdmin, requireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { ROLES } from "@/lib/constants";
 
 export interface PackageTypeItem {
   id: string;
@@ -34,12 +35,16 @@ const fallbackPackageTypes: PackageTypeItem[] = [
 export async function getPackageTypes(options?: {
   activeOnly?: boolean;
 }): Promise<PackageTypeItem[]> {
+  const session = await requireAuth();
+  const isAdmin = session.profile?.role === ROLES.ADMIN;
+  const enforceActiveOnly = !isAdmin || Boolean(options?.activeOnly);
+
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
   if (isPlaceholderEnv) {
-    return options?.activeOnly
+    return enforceActiveOnly
       ? fallbackPackageTypes.filter((p) => p.isActive)
       : fallbackPackageTypes;
   }
@@ -51,7 +56,7 @@ export async function getPackageTypes(options?: {
     .select("id, name, description, is_active, created_at, updated_at")
     .order("name", { ascending: true });
 
-  if (options?.activeOnly) {
+  if (enforceActiveOnly) {
     query = query.eq("is_active", true);
   }
 
@@ -59,7 +64,7 @@ export async function getPackageTypes(options?: {
 
   if (error || !data || data.length === 0) {
     if (error) console.error("Error fetching package types:", error);
-    return options?.activeOnly
+    return enforceActiveOnly
       ? fallbackPackageTypes.filter((p) => p.isActive)
       : fallbackPackageTypes;
   }

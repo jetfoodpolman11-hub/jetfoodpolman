@@ -152,10 +152,27 @@ let localMockReports: MockReportEntry[] = [
 ];
 
 /**
- * Reset local mock reports for automated test repeatability
+ * Reset local mock reports for automated test repeatability (Disabled in production)
  */
 export async function resetMockReportsForTesting() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Operation forbidden in production environment.");
+  }
   localMockReports = [];
+}
+
+/**
+ * Strip PostgREST filter control characters to prevent .or() filter injection
+ */
+function sanitizePostgrestFilterInput(raw?: string): string | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  const cleaned = raw
+    .replace(/[,().%\\*;:'"<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 64)
+    .toLowerCase();
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 /**
@@ -845,7 +862,7 @@ export async function getAdminDailyReports(
   const endDate = options?.endDate && options.endDate !== "ALL" ? options.endDate : undefined;
   const courierId = options?.courierId && options.courierId !== "ALL" ? options.courierId : undefined;
   const packageTypeId = options?.packageTypeId && options.packageTypeId !== "ALL" ? options.packageTypeId : undefined;
-  const routeQuery = options?.routeQuery?.trim().toLowerCase() || undefined;
+  const routeQuery = sanitizePostgrestFilterInput(options?.routeQuery);
 
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -1050,3 +1067,50 @@ export async function getAdminDailyReports(
     summary,
   };
 }
+
+/**
+ * Server Action: Delete Daily Operational Report (Admin ONLY)
+ * Couriers are strictly prohibited from deleting any daily report (own or others).
+ */
+export async function deleteDailyReportAction(
+  reportId: string
+): Promise<DailyReportActionResult> {
+  await requireAdmin();
+
+  if (!reportId || typeof reportId !== "string" || !reportId.trim()) {
+    return { success: false, error: "ID laporan tidak valid." };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const idx = localMockReports.findIndex((r) => r.id === reportId);
+    if (idx === -1) {
+      return { success: false, error: "Laporan tidak ditemukan." };
+    }
+    localMockReports.splice(idx, 1);
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/courier/history");
+    return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("daily_reports")
+    .delete()
+    .eq("id", reportId);
+
+  if (error) {
+    return { success: false, error: `Gagal menghapus laporan: ${error.message}` };
+  }
+
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/courier/history");
+
+  return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
+}
+

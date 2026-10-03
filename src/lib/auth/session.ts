@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { UserRole } from "@/lib/constants";
+import { verifyMockSessionSignature } from "./cookie-signer";
 
 export interface CurrentSessionData {
   user: {
@@ -23,6 +24,47 @@ export interface CurrentSessionData {
   } | null;
 }
 
+const MOCK_COURIER_DIRECTORY: Record<
+  string,
+  {
+    userId: string;
+    courierId: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    vehicleType: string;
+    plateNumber: string;
+  }
+> = {
+  "JF-001": {
+    userId: "mock-courier-uuid",
+    courierId: "mock-courier-rec-id",
+    fullName: "Kurir Lapangan Ali",
+    email: "kurir@jetfoodpolman.com",
+    phone: "081234567890",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 1234 XX",
+  },
+  "JF-002": {
+    userId: "mock-courier-uuid-2",
+    courierId: "mock-courier-rec-2",
+    fullName: "Kurir Lapangan Budi",
+    email: "budi@jetfoodpolman.com",
+    phone: "081234567891",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 5678 YY",
+  },
+  "JF-003": {
+    userId: "mock-courier-uuid-3",
+    courierId: "mock-courier-rec-3",
+    fullName: "Kurir Lapangan Citra",
+    email: "citra@jetfoodpolman.com",
+    phone: "081234567892",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 9012 ZZ",
+  },
+};
+
 /**
  * Get current authenticated user profile and courier info from Server Components or Server Actions
  */
@@ -30,40 +72,68 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
   try {
     const cookieStore = await cookies();
     const mockRole = cookieStore.get("jf_mock_role")?.value as UserRole | undefined;
+    const mockCode = cookieStore.get("jf_mock_code")?.value || "JF-001";
+    const mockSig = cookieStore.get("jf_mock_sig")?.value;
 
-    // Support local development mock session cookies
-    if (mockRole && (mockRole === "ADMIN" || mockRole === "KURIR")) {
+    // Support local development mock session cookies ONLY when cryptographically signed & not expired
+    if (
+      mockRole &&
+      (mockRole === "ADMIN" || mockRole === "KURIR") &&
+      verifyMockSessionSignature(
+        mockRole,
+        mockRole === "KURIR" ? mockCode : "",
+        mockSig
+      )
+    ) {
+      if (mockRole === "ADMIN") {
+        const mockEmail =
+          cookieStore.get("jf_mock_email")?.value || "admin@jetfoodpolman.com";
+        const mockName =
+          cookieStore.get("jf_mock_name")?.value || "Super Admin JetFood";
+
+        return {
+          user: {
+            id: "mock-admin-uuid",
+            email: mockEmail,
+          },
+          profile: {
+            id: "mock-admin-uuid",
+            role: "ADMIN",
+            fullName: mockName,
+            phone: "081234567890",
+            isActive: true,
+          },
+          courier: null,
+        };
+      }
+
+      const directoryEntry =
+        MOCK_COURIER_DIRECTORY[mockCode.toUpperCase()] ||
+        MOCK_COURIER_DIRECTORY["JF-001"];
+
       const mockEmail =
-        cookieStore.get("jf_mock_email")?.value ||
-        (mockRole === "ADMIN"
-          ? "admin@jetfoodpolman.com"
-          : "kurir@jetfoodpolman.com");
+        cookieStore.get("jf_mock_email")?.value || directoryEntry.email;
       const mockName =
-        cookieStore.get("jf_mock_name")?.value ||
-        (mockRole === "ADMIN" ? "Super Admin JetFood" : "Kurir Lapangan Ali");
-      const mockCode = cookieStore.get("jf_mock_code")?.value || "JF-001";
+        cookieStore.get("jf_mock_name")?.value || directoryEntry.fullName;
 
       return {
         user: {
-          id: mockRole === "ADMIN" ? "mock-admin-uuid" : "mock-courier-uuid",
+          id: directoryEntry.userId,
           email: mockEmail,
         },
         profile: {
-          id: mockRole === "ADMIN" ? "mock-admin-uuid" : "mock-courier-uuid",
-          role: mockRole,
+          id: directoryEntry.userId,
+          role: "KURIR",
           fullName: mockName,
-          phone: "081234567890",
+          phone: directoryEntry.phone,
           isActive: true,
         },
-        courier:
-          mockRole === "KURIR"
-            ? {
-                id: "mock-courier-rec-id",
-                courierCode: mockCode,
-                vehicleType: "Motor",
-                plateNumber: "DC 1234 AA",
-              }
-            : null,
+        courier: {
+          id: directoryEntry.courierId,
+          courierCode: mockCode.toUpperCase(),
+          vehicleType: directoryEntry.vehicleType,
+          plateNumber: directoryEntry.plateNumber,
+        },
       };
     }
 
@@ -89,11 +159,12 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
     if (profile?.role === "KURIR") {
       const { data: courier } = await supabase
         .from("couriers")
-        .select("id, courier_code, vehicle_type, plate_number")
+        .select("id, courier_code, vehicle_type, plate_number, status")
         .eq("user_id", user.id)
         .single();
 
-      if (courier) {
+      // If courier record is deactivated, mark profile inactive in session
+      if (courier && courier.status === "ACTIVE") {
         courierData = {
           id: courier.id,
           courierCode: courier.courier_code,
@@ -114,7 +185,9 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
             role: profile.role,
             fullName: profile.full_name,
             phone: profile.phone,
-            isActive: profile.is_active,
+            isActive:
+              profile.is_active &&
+              (profile.role !== "KURIR" || courierData !== null),
           }
         : null,
       courier: courierData,

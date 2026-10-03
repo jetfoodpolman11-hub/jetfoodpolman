@@ -5,12 +5,88 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { validateLoginInput } from "@/lib/validations/auth";
 import { getDefaultDashboardPath } from "@/lib/auth/roles";
+import { signMockSession } from "@/lib/auth/cookie-signer";
+import { sanitizeRedirectPath } from "@/lib/auth/guards";
 
 export interface AuthActionResult {
   success: boolean;
   error?: string;
   fieldErrors?: Record<string, string>;
   redirectTo?: string;
+}
+
+const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
+
+const ALLOWED_DEMO_COURIERS: Record<
+  string,
+  { name: string; email: string; isActive: boolean }
+> = {
+  "JF-001": {
+    name: "Kurir Lapangan Ali",
+    email: "kurir@jetfoodpolman.com",
+    isActive: true,
+  },
+  "JF-002": {
+    name: "Kurir Lapangan Budi",
+    email: "budi@jetfoodpolman.com",
+    isActive: true,
+  },
+  "JF-003": {
+    name: "Kurir Lapangan Citra",
+    email: "citra@jetfoodpolman.com",
+    isActive: true,
+  },
+};
+
+function setSignedSessionCookies(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  params: {
+    role: "ADMIN" | "KURIR";
+    email: string;
+    name: string;
+    code?: string;
+  }
+) {
+  const isProd = process.env.NODE_ENV === "production";
+  const baseOpts = {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: isProd,
+    maxAge: COOKIE_MAX_AGE,
+  };
+
+  const normalizedCode = params.role === "KURIR" ? params.code || "JF-001" : "";
+  const signature = signMockSession(params.role, normalizedCode);
+
+  cookieStore.set("jf_mock_role", params.role, baseOpts);
+  cookieStore.set("jf_mock_email", params.email, baseOpts);
+  cookieStore.set("jf_mock_name", params.name, baseOpts);
+  if (params.role === "KURIR") {
+    cookieStore.set("jf_mock_code", normalizedCode, baseOpts);
+  } else {
+    cookieStore.delete("jf_mock_code");
+  }
+  cookieStore.set("jf_mock_sig", signature, baseOpts);
+}
+
+/**
+ * Ensures role-appropriate post-login redirect target and blocks Open Redirects
+ */
+function resolveRoleSafeRedirect(
+  role: "ADMIN" | "KURIR",
+  rawRedirect?: string | null
+): string {
+  const defaultPath = getDefaultDashboardPath(role);
+  const sanitized = sanitizeRedirectPath(rawRedirect, defaultPath);
+
+  if (role === "KURIR" && sanitized.startsWith("/admin")) {
+    return "/courier/dashboard";
+  }
+  if (role === "ADMIN" && sanitized.startsWith("/courier")) {
+    return "/admin/dashboard";
+  }
+  return sanitized;
 }
 
 /**
@@ -44,69 +120,127 @@ export async function loginAction(
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
-  // 2. Courier Code Fast Login for Localhost / Demo Mode
-  if (!rawIdentifier.includes("@")) {
-    const code = rawIdentifier.toUpperCase();
-    if (code === "JF-001" || code === "JF-002" || code.startsWith("JF-") || isPlaceholderEnv) {
-      cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-      cookieStore.set("jf_mock_email", `${code.toLowerCase()}@jetfoodpolman.com`, { path: "/" });
-      cookieStore.set("jf_mock_name", code === "JF-002" ? "Kurir Lapangan Budi" : "Kurir Lapangan Ali", { path: "/" });
-      cookieStore.set("jf_mock_code", code, { path: "/" });
+  // 2. Local Demo / Placeholder Mode Authentication (Strict password & signature check)
+  if (isPlaceholderEnv) {
+    if (!rawIdentifier.includes("@")) {
+      const code = rawIdentifier.toUpperCase();
+      const demoCourier = ALLOWED_DEMO_COURIERS[code];
 
-      const target = explicitRedirect && explicitRedirect.startsWith("/") ? explicitRedirect : "/courier/dashboard";
-      return { success: true, redirectTo: target };
-    }
-  }
+      if (!demoCourier) {
+        return {
+          success: false,
+          error: `Kode kurir "${code}" tidak terdaftar dalam sistem.`,
+        };
+      }
 
-  // 3. Email Localhost Demo Mode
-  const email = rawIdentifier.toLowerCase();
-  if (isPlaceholderEnv || email === "admin@jetfoodpolman.com" || email === "kurir@jetfoodpolman.com") {
-    if (email === "admin@jetfoodpolman.com" && (password === "admin123" || isPlaceholderEnv)) {
-      cookieStore.set("jf_mock_role", "ADMIN", { path: "/" });
-      cookieStore.set("jf_mock_email", "admin@jetfoodpolman.com", { path: "/" });
-      cookieStore.set("jf_mock_name", "Super Admin JetFood", { path: "/" });
+      if (!demoCourier.isActive) {
+        return {
+          success: false,
+          error: "Status akun kurir Anda sedang dinonaktifkan oleh administrator.",
+        };
+      }
 
-      const target = explicitRedirect && explicitRedirect.startsWith("/") ? explicitRedirect : "/admin/dashboard";
-      return { success: true, redirectTo: target };
-    }
+      if (password !== "kurir123") {
+        return {
+          success: false,
+          error: "Kredensial atau kata sandi tidak sesuai.",
+        };
+      }
 
-    if (
-      (email === "kurir@jetfoodpolman.com" || email === "ali@jetfoodpolman.com") &&
-      (password === "kurir123" || isPlaceholderEnv)
-    ) {
-      cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-      cookieStore.set("jf_mock_email", email, { path: "/" });
-      cookieStore.set("jf_mock_name", "Kurir Lapangan Ali", { path: "/" });
-      cookieStore.set("jf_mock_code", "JF-001", { path: "/" });
+      setSignedSessionCookies(cookieStore, {
+        role: "KURIR",
+        email: demoCourier.email,
+        name: demoCourier.name,
+        code,
+      });
 
-      const target = explicitRedirect && explicitRedirect.startsWith("/") ? explicitRedirect : "/courier/dashboard";
-      return { success: true, redirectTo: target };
-    }
-
-    if (isPlaceholderEnv) {
       return {
-        success: false,
-        error: "Akun tidak dikenali di mode demo. Gunakan Kode Kurir JF-001 (sandi: kurir123) atau admin@jetfoodpolman.com (admin123).",
+        success: true,
+        redirectTo: resolveRoleSafeRedirect("KURIR", explicitRedirect),
       };
     }
+
+    const email = rawIdentifier.toLowerCase();
+    if (email === "admin@jetfoodpolman.com") {
+      if (password !== "admin123") {
+        return {
+          success: false,
+          error: "Kredensial atau kata sandi tidak sesuai.",
+        };
+      }
+
+      setSignedSessionCookies(cookieStore, {
+        role: "ADMIN",
+        email: "admin@jetfoodpolman.com",
+        name: "Super Admin JetFood",
+      });
+
+      return {
+        success: true,
+        redirectTo: resolveRoleSafeRedirect("ADMIN", explicitRedirect),
+      };
+    }
+
+    const matchedCourierEntry = Object.entries(ALLOWED_DEMO_COURIERS).find(
+      ([, info]) => info.email.toLowerCase() === email
+    );
+
+    if (matchedCourierEntry || email === "ali@jetfoodpolman.com") {
+      if (password !== "kurir123") {
+        return {
+          success: false,
+          error: "Kredensial atau kata sandi tidak sesuai.",
+        };
+      }
+
+      const [code, info] = matchedCourierEntry || [
+        "JF-001",
+        ALLOWED_DEMO_COURIERS["JF-001"],
+      ];
+
+      setSignedSessionCookies(cookieStore, {
+        role: "KURIR",
+        email: info.email,
+        name: info.name,
+        code,
+      });
+
+      return {
+        success: true,
+        redirectTo: resolveRoleSafeRedirect("KURIR", explicitRedirect),
+      };
+    }
+
+    return {
+      success: false,
+      error: "Kredensial atau kata sandi tidak sesuai.",
+    };
   }
 
-  // 4. Supabase Auth Authentication
+  // 3. Supabase Auth Authentication
   const supabase = await createClient();
-  let authEmail = email;
+  let authEmail = rawIdentifier.toLowerCase();
 
   // Resolve Courier Code to Email if identifier is not an email
   if (!rawIdentifier.includes("@")) {
+    const cleanCode = rawIdentifier.toUpperCase();
+    if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+      return {
+        success: false,
+        error: "Format kode kurir tidak valid (contoh: JF-001).",
+      };
+    }
+
     const { data: courierRecord, error: courierErr } = await supabase
       .from("couriers")
       .select("id, courier_code, status, profiles:user_id ( id, email, is_active, full_name )")
-      .ilike("courier_code", rawIdentifier)
+      .eq("courier_code", cleanCode)
       .maybeSingle();
 
     if (courierErr || !courierRecord) {
       return {
         success: false,
-        error: `Kode kurir "${rawIdentifier.toUpperCase()}" tidak terdaftar dalam sistem.`,
+        error: `Kode kurir "${cleanCode}" tidak terdaftar dalam sistem.`,
       };
     }
 
@@ -147,7 +281,7 @@ export async function loginAction(
     };
   }
 
-  // 5. Fetch user profile from database to determine role and active status
+  // 4. Fetch user profile from database to determine role and active status
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, is_active, full_name")
@@ -162,7 +296,7 @@ export async function loginAction(
     };
   }
 
-  // 6. Check if account is active
+  // 5. Check if account is active
   if (!profile.is_active) {
     await supabase.auth.signOut();
     return {
@@ -171,12 +305,8 @@ export async function loginAction(
     };
   }
 
-  // 7. Determine destination path
-  const defaultPath = getDefaultDashboardPath(profile.role);
-  const targetRedirect =
-    explicitRedirect && explicitRedirect.startsWith("/")
-      ? explicitRedirect
-      : defaultPath;
+  // 6. Determine destination path safely
+  const targetRedirect = resolveRoleSafeRedirect(profile.role, explicitRedirect);
 
   return {
     success: true,
@@ -191,11 +321,18 @@ export async function loginAction(
 export async function loginWithBiometricAction(
   courierCode: string
 ): Promise<AuthActionResult> {
-  if (!courierCode || !courierCode.trim()) {
+  if (!courierCode || typeof courierCode !== "string" || !courierCode.trim()) {
     return { success: false, error: "Kode kurir biometrik tidak valid." };
   }
 
   const cleanCode = courierCode.trim().toUpperCase();
+  if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+    return {
+      success: false,
+      error: "Format ID / Kode Kurir tidak valid (contoh: JF-001).",
+    };
+  }
+
   const cookieStore = await cookies();
 
   const isPlaceholderEnv =
@@ -203,10 +340,20 @@ export async function loginWithBiometricAction(
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
   if (isPlaceholderEnv) {
-    cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-    cookieStore.set("jf_mock_email", `${cleanCode.toLowerCase()}@jetfoodpolman.com`, { path: "/" });
-    cookieStore.set("jf_mock_name", cleanCode === "JF-002" ? "Kurir Lapangan Budi" : "Kurir Lapangan Ali", { path: "/" });
-    cookieStore.set("jf_mock_code", cleanCode, { path: "/" });
+    const demoCourier = ALLOWED_DEMO_COURIERS[cleanCode];
+    if (!demoCourier) {
+      return {
+        success: false,
+        error: `Kode kurir "${cleanCode}" tidak terdaftar di sistem.`,
+      };
+    }
+
+    setSignedSessionCookies(cookieStore, {
+      role: "KURIR",
+      email: demoCourier.email,
+      name: demoCourier.name,
+      code: cleanCode,
+    });
 
     return { success: true, redirectTo: "/courier/dashboard" };
   }
@@ -215,7 +362,7 @@ export async function loginWithBiometricAction(
   const { data: courierRec, error: fetchErr } = await supabase
     .from("couriers")
     .select("id, courier_code, status, profiles:user_id ( id, email, is_active, full_name )")
-    .ilike("courier_code", cleanCode)
+    .eq("courier_code", cleanCode)
     .maybeSingle();
 
   if (fetchErr || !courierRec) {
@@ -234,10 +381,12 @@ export async function loginWithBiometricAction(
     return { success: false, error: "Akun profil kurir tidak aktif." };
   }
 
-  cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-  cookieStore.set("jf_mock_email", prof.email, { path: "/" });
-  cookieStore.set("jf_mock_name", prof.full_name, { path: "/" });
-  cookieStore.set("jf_mock_code", courierRec.courier_code, { path: "/" });
+  setSignedSessionCookies(cookieStore, {
+    role: "KURIR",
+    email: prof.email,
+    name: prof.full_name,
+    code: courierRec.courier_code,
+  });
 
   return { success: true, redirectTo: "/courier/dashboard" };
 }
@@ -250,24 +399,40 @@ export async function loginCourierByIdAction(
   courierCode: string,
   redirectTo?: string
 ): Promise<AuthActionResult> {
-  if (!courierCode || !courierCode.trim()) {
+  if (!courierCode || typeof courierCode !== "string" || !courierCode.trim()) {
     return { success: false, error: "Silakan masukkan ID / Kode Kurir Anda." };
   }
 
   const cleanCode = courierCode.trim().toUpperCase();
+  if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+    return {
+      success: false,
+      error: "Format ID / Kode Kurir tidak valid (contoh: JF-001).",
+    };
+  }
+
   const cookieStore = await cookies();
+  const target = resolveRoleSafeRedirect("KURIR", redirectTo);
 
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
-  const target = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/courier/dashboard";
+  if (isPlaceholderEnv) {
+    const demoCourier = ALLOWED_DEMO_COURIERS[cleanCode];
+    if (!demoCourier) {
+      return {
+        success: false,
+        error: `Kode kurir "${cleanCode}" tidak ditemukan di sistem.`,
+      };
+    }
 
-  if (isPlaceholderEnv || cleanCode === "JF-001" || cleanCode === "JF-002" || cleanCode.startsWith("JF-")) {
-    cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-    cookieStore.set("jf_mock_email", `${cleanCode.toLowerCase()}@jetfoodpolman.com`, { path: "/" });
-    cookieStore.set("jf_mock_name", cleanCode === "JF-002" ? "Kurir Lapangan Budi" : "Kurir Lapangan Ali", { path: "/" });
-    cookieStore.set("jf_mock_code", cleanCode, { path: "/" });
+    setSignedSessionCookies(cookieStore, {
+      role: "KURIR",
+      email: demoCourier.email,
+      name: demoCourier.name,
+      code: cleanCode,
+    });
 
     return { success: true, redirectTo: target };
   }
@@ -276,7 +441,7 @@ export async function loginCourierByIdAction(
   const { data: courierRec, error: fetchErr } = await supabase
     .from("couriers")
     .select("id, courier_code, status, profiles:user_id ( id, email, is_active, full_name )")
-    .ilike("courier_code", cleanCode)
+    .eq("courier_code", cleanCode)
     .maybeSingle();
 
   if (fetchErr || !courierRec) {
@@ -295,10 +460,12 @@ export async function loginCourierByIdAction(
     return { success: false, error: "Akun profil kurir tidak aktif." };
   }
 
-  cookieStore.set("jf_mock_role", "KURIR", { path: "/" });
-  cookieStore.set("jf_mock_email", prof.email, { path: "/" });
-  cookieStore.set("jf_mock_name", prof.full_name, { path: "/" });
-  cookieStore.set("jf_mock_code", courierRec.courier_code, { path: "/" });
+  setSignedSessionCookies(cookieStore, {
+    role: "KURIR",
+    email: prof.email,
+    name: prof.full_name,
+    code: courierRec.courier_code,
+  });
 
   return { success: true, redirectTo: target };
 }
@@ -312,6 +479,7 @@ export async function logoutAction() {
   cookieStore.delete("jf_mock_email");
   cookieStore.delete("jf_mock_name");
   cookieStore.delete("jf_mock_code");
+  cookieStore.delete("jf_mock_sig");
 
   try {
     const supabase = await createClient();
@@ -320,5 +488,5 @@ export async function logoutAction() {
     console.error("Error signing out from Supabase:", error);
   }
 
-  redirect("/login");
+  redirect("/");
 }

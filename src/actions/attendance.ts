@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCourier, requireAdmin } from "@/lib/auth/guards";
+import { requireCourier, requireAdmin, requireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getWitaDateString, formatWitaDateTime } from "@/lib/date";
 
@@ -105,9 +105,12 @@ function formatTimeWitaSync(isoString?: string | null): string | null {
 }
 
 /**
- * Reset local mock attendance for clean automated tests
+ * Reset local mock attendance for clean automated tests (Disabled in production)
  */
 export async function resetMockAttendanceForTesting() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Operation forbidden in production environment.");
+  }
   localMockAttendance = [
     {
       id: "att-seed-yesterday",
@@ -126,11 +129,17 @@ export async function resetMockAttendanceForTesting() {
 }
 
 /**
- * Get today's attendance state for a specific courier
+ * Get today's attendance state for a specific courier (Enforces ownership or Admin role)
  */
 export async function getTodayAttendanceForCourier(
   courierId: string
 ): Promise<TodayAttendanceState> {
+  const session = await requireAuth();
+  const isAdmin = session.profile?.role === "ADMIN";
+  if (!isAdmin && session.courier?.id !== courierId) {
+    throw new Error("Akses ditolak: Anda tidak dapat mengakses data presensi kurir lain.");
+  }
+
   const todayWita = getWitaDateString(new Date());
 
   const isPlaceholderEnv =
