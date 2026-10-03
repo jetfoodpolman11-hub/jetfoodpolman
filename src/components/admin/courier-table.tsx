@@ -133,9 +133,18 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
                 <tr key={courier.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-xs">
-                        {courier.courierCode.slice(-3)}
-                      </div>
+                      {courier.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={courier.avatarUrl}
+                          alt={courier.fullName}
+                          className="h-10 w-10 rounded-full object-cover border border-orange-200 shrink-0 shadow-2xs"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-xs shrink-0">
+                          {courier.courierCode.slice(-3)}
+                        </div>
+                      )}
                       <div>
                         <span className="font-semibold text-slate-900 block">
                           {courier.fullName}
@@ -243,13 +252,27 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
               className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3"
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">
-                    {courier.fullName}
-                  </h3>
-                  <span className="text-xs font-semibold text-orange-600">
-                    {courier.courierCode}
-                  </span>
+                <div className="flex items-center gap-3">
+                  {courier.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={courier.avatarUrl}
+                      alt={courier.fullName}
+                      className="h-11 w-11 rounded-full object-cover border border-orange-200 shrink-0 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-xs shrink-0">
+                      {courier.courierCode.slice(-3)}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-slate-900 text-sm">
+                      {courier.fullName}
+                    </h3>
+                    <span className="text-xs font-semibold text-orange-600">
+                      {courier.courierCode}
+                    </span>
+                  </div>
                 </div>
                 {courier.status === "ACTIVE" ? (
                   <Badge variant="success">Aktif</Badge>

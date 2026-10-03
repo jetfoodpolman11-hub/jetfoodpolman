@@ -15,6 +15,7 @@ export interface CourierWithProfile {
   fullName: string;
   email: string;
   phone: string | null;
+  avatarUrl: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -25,8 +26,90 @@ export interface ActionResult {
   message?: string;
 }
 
+const AVATAR_BUCKET = "courier-avatars";
+
 // Empty initial store (all dummy/demo courier accounts removed)
 const MOCK_COURIERS: CourierWithProfile[] = [];
+
+/**
+ * Helper: Upload courier profile photo (File or compressed Data URL) to Supabase Storage public bucket
+ */
+async function uploadCourierAvatarToSupabase(
+  userId: string,
+  formData: FormData
+): Promise<string | null> {
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  const avatarDataUrl = (formData.get("avatarDataUrl") as string | null)?.trim();
+  const avatarFile = formData.get("avatarFile") as File | null;
+
+  if (isPlaceholderEnv) {
+    return avatarDataUrl || null;
+  }
+
+  let fileBuffer: Buffer | null = null;
+  let contentType = "image/jpeg";
+  let ext = "jpg";
+
+  if (avatarDataUrl && avatarDataUrl.startsWith("data:image/")) {
+    const match = avatarDataUrl.match(/^data:(image\/([a-zA-Z0-9+.-]+));base64,(.+)$/);
+    if (match) {
+      contentType = match[1];
+      const subType = match[2].toLowerCase();
+      ext = subType === "png" ? "png" : subType === "webp" ? "webp" : "jpg";
+      fileBuffer = Buffer.from(match[3], "base64");
+    }
+  } else if (avatarFile && typeof avatarFile === "object" && avatarFile.size > 0) {
+    const arrayBuffer = await avatarFile.arrayBuffer();
+    fileBuffer = Buffer.from(arrayBuffer);
+    contentType = avatarFile.type || "image/jpeg";
+    if (contentType.includes("png")) ext = "png";
+    else if (contentType.includes("webp")) ext = "webp";
+    else ext = "jpg";
+  }
+
+  if (!fileBuffer) {
+    return null;
+  }
+
+  try {
+    const adminClient = createAdminClient();
+
+    // Ensure public bucket exists
+    const { data: buckets } = await adminClient.storage.listBuckets();
+    const exists = buckets?.some((b) => b.name === AVATAR_BUCKET);
+    if (!exists) {
+      await adminClient.storage.createBucket(AVATAR_BUCKET, {
+        public: true,
+        fileSizeLimit: 8 * 1024 * 1024,
+      });
+    }
+
+    const filePath = `avatars/${userId}-${Date.now()}.${ext}`;
+    const { error: uploadErr } = await adminClient.storage
+      .from(AVATAR_BUCKET)
+      .upload(filePath, fileBuffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.error("Failed to upload courier avatar to Supabase Storage:", uploadErr.message);
+      return avatarDataUrl || null;
+    }
+
+    const { data: publicUrlData } = adminClient.storage
+      .from(AVATAR_BUCKET)
+      .getPublicUrl(filePath);
+
+    return publicUrlData?.publicUrl || null;
+  } catch (err) {
+    console.error("Error uploading courier avatar:", err);
+    return avatarDataUrl || null;
+  }
+}
 
 /**
  * Internal helper: Resolve all couriers from Supabase (PostgreSQL tables + Supabase Auth metadata)
@@ -42,6 +125,18 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
 
   try {
     const adminClient = createAdminClient();
+
+    // Fetch auth.users first so we always have avatar_url and user_metadata
+    const { data: usersList } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    const authUserMap = new Map<string, Record<string, unknown>>();
+    if (usersList?.users) {
+      for (const u of usersList.users) {
+        authUserMap.set(u.id, (u.user_metadata || {}) as Record<string, unknown>);
+      }
+    }
 
     // 1. Try querying PostgreSQL couriers + profiles tables first
     const { data, error } = await adminClient
@@ -71,6 +166,11 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
           ? item.profiles[0]
           : item.profiles;
         if (profile) {
+          const meta = authUserMap.get(item.user_id) || {};
+          const avatarUrl =
+            typeof meta.avatar_url === "string" && meta.avatar_url
+              ? meta.avatar_url
+              : null;
           formatted.push({
             id: item.id,
             userId: item.user_id,
@@ -81,6 +181,7 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
             fullName: profile.full_name,
             email: profile.email,
             phone: profile.phone,
+            avatarUrl,
             isActive: profile.is_active,
             createdAt: item.created_at,
           });
@@ -90,10 +191,7 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
     }
 
     // 2. Also read couriers provisioned in Supabase Auth (auth.users user_metadata)
-    const { data: usersList, error: usersErr } =
-      await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
-
-    if (usersErr || !usersList?.users) {
+    if (!usersList?.users) {
       return [];
     }
 
@@ -104,12 +202,18 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
         const status: "ACTIVE" | "INACTIVE" =
           meta.status === "INACTIVE" ? "INACTIVE" : "ACTIVE";
         const isActive = meta.is_active !== false && status === "ACTIVE";
+        const avatarUrl =
+          typeof meta.avatar_url === "string" && meta.avatar_url
+            ? meta.avatar_url
+            : null;
         authCouriers.push({
           id: (typeof meta.courier_id === "string" && meta.courier_id) || u.id,
           userId: u.id,
           courierCode: meta.courier_code.toUpperCase(),
           vehicleType:
-            typeof meta.vehicle_type === "string" ? meta.vehicle_type : "Sepeda Motor",
+            typeof meta.vehicle_type === "string"
+              ? meta.vehicle_type
+              : "Sepeda Motor",
           plateNumber:
             typeof meta.plate_number === "string" ? meta.plate_number : null,
           status,
@@ -119,6 +223,7 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
             "Kurir",
           email: u.email || "",
           phone: typeof meta.phone === "string" ? meta.phone : null,
+          avatarUrl,
           isActive,
           createdAt: u.created_at || new Date().toISOString(),
         });
@@ -135,13 +240,21 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
 
 /**
  * Internal helper: Find a single courier by courierCode across Supabase
+ * Supports both exact match (e.g. JF0001) and normalized match ignoring hyphens/spaces (e.g. JF-0001 <-> JF0001)
  */
 export async function findCourierByCodeInternal(
   courierCode: string
 ): Promise<CourierWithProfile | null> {
   const cleanCode = courierCode.trim().toUpperCase();
+  const normalizedInput = cleanCode.replace(/[-\s]/g, "");
   const all = await fetchAllCouriersInternal();
-  return all.find((c) => c.courierCode.toUpperCase() === cleanCode) || null;
+  return (
+    all.find(
+      (c) =>
+        c.courierCode.toUpperCase() === cleanCode ||
+        c.courierCode.toUpperCase().replace(/[-\s]/g, "") === normalizedInput
+    ) || null
+  );
 }
 
 /**
@@ -222,8 +335,11 @@ export async function createCourierAction(
     };
   }
 
+  const normalizedNewCode = courierCode.replace(/[-\s]/g, "");
   const dupCode = existingCouriers.find(
-    (c) => c.courierCode.toUpperCase() === courierCode.toUpperCase()
+    (c) =>
+      c.courierCode.toUpperCase() === courierCode.toUpperCase() ||
+      c.courierCode.toUpperCase().replace(/[-\s]/g, "") === normalizedNewCode
   );
   if (dupCode) {
     return {
@@ -237,9 +353,12 @@ export async function createCourierAction(
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
   if (isPlaceholderEnv) {
+    const tempUserId = `courier-user-${Date.now()}`;
+    const avatarUrl = await uploadCourierAvatarToSupabase(tempUserId, formData);
+
     const newCourier: CourierWithProfile = {
       id: `courier-rec-${Date.now()}`,
-      userId: `courier-user-${Date.now()}`,
+      userId: tempUserId,
       courierCode,
       vehicleType: vehicleType || "Sepeda Motor",
       plateNumber,
@@ -247,6 +366,7 @@ export async function createCourierAction(
       fullName,
       email,
       phone,
+      avatarUrl,
       isActive: true,
       createdAt: new Date().toISOString(),
     };
@@ -293,7 +413,10 @@ export async function createCourierAction(
 
     const newUserId = authUser.user.id;
 
-    // 4. Also insert into PostgreSQL profiles & couriers tables if schema is initialized
+    // 4. Upload profile photo to Supabase Storage if provided
+    const avatarUrl = await uploadCourierAvatarToSupabase(newUserId, formData);
+
+    // 5. Also insert into PostgreSQL profiles & couriers tables if schema is initialized
     const { error: profileError } = await adminClient.from("profiles").upsert({
       id: newUserId,
       role: "KURIR",
@@ -303,6 +426,7 @@ export async function createCourierAction(
       is_active: true,
     });
 
+    let resolvedCourierId = newUserId;
     if (!profileError) {
       const { data: insertedCourier } = await adminClient
         .from("couriers")
@@ -317,21 +441,25 @@ export async function createCourierAction(
         .maybeSingle();
 
       if (insertedCourier?.id) {
-        await adminClient.auth.admin.updateUserById(newUserId, {
-          user_metadata: {
-            role: "KURIR",
-            courier_id: insertedCourier.id,
-            full_name: fullName,
-            phone,
-            courier_code: courierCode,
-            vehicle_type: vehicleType || "Sepeda Motor",
-            plate_number: plateNumber,
-            status: "ACTIVE",
-            is_active: true,
-          },
-        });
+        resolvedCourierId = insertedCourier.id;
       }
     }
+
+    // 6. Save final metadata (including avatar_url and courier_id) in Supabase Auth
+    await adminClient.auth.admin.updateUserById(newUserId, {
+      user_metadata: {
+        role: "KURIR",
+        courier_id: resolvedCourierId,
+        full_name: fullName,
+        phone,
+        courier_code: courierCode,
+        vehicle_type: vehicleType || "Sepeda Motor",
+        plate_number: plateNumber,
+        avatar_url: avatarUrl,
+        status: "ACTIVE",
+        is_active: true,
+      },
+    });
 
     revalidatePath("/admin/couriers");
     revalidatePath("/admin/dashboard");
@@ -354,7 +482,7 @@ export async function createCourierAction(
 }
 
 /**
- * Server Action: Update courier details
+ * Server Action: Update courier details (including optional new profile photo)
  */
 export async function updateCourierAction(
   courierId: string,
@@ -393,6 +521,11 @@ export async function updateCourierAction(
     };
   }
 
+  const uploadedAvatarUrl = await uploadCourierAvatarToSupabase(
+    userId,
+    formData
+  );
+
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
@@ -408,10 +541,15 @@ export async function updateCourierAction(
     target.courierCode = courierCode;
     target.vehicleType = vehicleType;
     target.plateNumber = plateNumber;
+    if (uploadedAvatarUrl) {
+      target.avatarUrl = uploadedAvatarUrl;
+    }
 
     revalidatePath("/admin/couriers");
     revalidatePath("/admin/dashboard");
     revalidatePath("/admin/analytics");
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/account");
 
     return { success: true, message: "Data kurir berhasil diperbarui." };
   }
@@ -420,6 +558,11 @@ export async function updateCourierAction(
   const existingTarget = allCouriers.find(
     (c) => c.id === courierId || c.userId === userId
   );
+
+  const finalAvatarUrl =
+    uploadedAvatarUrl !== null
+      ? uploadedAvatarUrl
+      : existingTarget?.avatarUrl || null;
 
   // 1. Update Supabase Auth metadata
   await adminClient.auth.admin.updateUserById(userId, {
@@ -431,6 +574,7 @@ export async function updateCourierAction(
       courier_code: courierCode,
       vehicle_type: vehicleType || "Sepeda Motor",
       plate_number: plateNumber,
+      avatar_url: finalAvatarUrl,
       status: existingTarget?.status || "ACTIVE",
       is_active: existingTarget?.isActive ?? true,
     },
@@ -457,6 +601,8 @@ export async function updateCourierAction(
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/analytics");
+  revalidatePath("/courier/dashboard");
+  revalidatePath("/courier/account");
 
   return { success: true, message: "Data kurir berhasil diperbarui." };
 }
@@ -512,6 +658,7 @@ export async function toggleCourierStatusAction(
         courier_code: existingTarget.courierCode,
         vehicle_type: existingTarget.vehicleType,
         plate_number: existingTarget.plateNumber,
+        avatar_url: existingTarget.avatarUrl,
         status: targetStatus,
         is_active: isTargetActive,
       },

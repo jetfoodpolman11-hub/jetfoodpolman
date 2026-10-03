@@ -29,6 +29,7 @@ export interface CourierDashboardData {
   courierCode: string;
   vehicleType: string | null;
   plateNumber: string | null;
+  avatarUrl: string | null;
   todayDateFormatted: string;
   attendance: TodayAttendanceState;
   recentReports: RecentReportItem[];
@@ -51,6 +52,8 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
   const courierCode = session.courier?.courierCode || "JF-KURIR";
   const vehicleType = session.courier?.vehicleType || "Sepeda Motor";
   const plateNumber = session.courier?.plateNumber || null;
+  const avatarUrl =
+    session.profile?.avatarUrl || session.courier?.avatarUrl || null;
   const courierId = session.courier?.id;
 
   const attendanceState = courierId
@@ -76,6 +79,7 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
     courierCode,
     vehicleType,
     plateNumber,
+    avatarUrl,
     todayDateFormatted: todayFormatted,
     attendance: attendanceState,
     recentReports: reports.slice(0, 5).map((r) => ({

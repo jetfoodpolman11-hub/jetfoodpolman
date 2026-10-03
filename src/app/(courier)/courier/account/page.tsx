@@ -28,6 +28,8 @@ export default async function CourierAccountPage() {
   const vehicleType = session.courier?.vehicleType || "Sepeda Motor";
   const plateNumber = session.courier?.plateNumber || "DC 1234 XX";
   const isActive = session.profile?.isActive !== false;
+  const avatarUrl =
+    session.profile?.avatarUrl || session.courier?.avatarUrl || null;
 
   return (
     <div className="space-y-5 pb-8 font-sans">
@@ -36,10 +38,19 @@ export default async function CourierAccountPage() {
         <div className="flex flex-col items-center text-center space-y-3 relative z-10">
           {/* Avatar with Red Ring Accent */}
           <div className="relative">
-            <div className="h-20 w-20 rounded-full border-2 border-red-600 p-1 flex items-center justify-center bg-slate-900 shadow-md">
-              <div className="h-full w-full rounded-full bg-slate-800 flex items-center justify-center text-red-500 font-black text-2xl">
-                {fullName.charAt(0).toUpperCase()}
-              </div>
+            <div className="h-20 w-20 rounded-full border-2 border-red-600 p-1 flex items-center justify-center bg-slate-900 shadow-md overflow-hidden">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={fullName}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full rounded-full bg-slate-800 flex items-center justify-center text-red-500 font-black text-2xl">
+                  {fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-950" title="Kurir Aktif" />
           </div>

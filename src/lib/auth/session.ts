@@ -19,6 +19,7 @@ export interface CurrentSessionData {
     role: UserRole;
     fullName: string;
     phone: string | null;
+    avatarUrl?: string | null;
     isActive: boolean;
   } | null;
   courier: {
@@ -26,6 +27,7 @@ export interface CurrentSessionData {
     courierCode: string;
     vehicleType: string | null;
     plateNumber: string | null;
+    avatarUrl?: string | null;
   } | null;
 }
 
@@ -67,6 +69,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
             role: "ADMIN",
             fullName: adminName,
             phone: null,
+            avatarUrl: null,
             isActive: true,
           },
           courier: null,
@@ -90,6 +93,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
             role: "KURIR",
             fullName: liveCourier.fullName,
             phone: liveCourier.phone,
+            avatarUrl: liveCourier.avatarUrl,
             isActive: liveCourier.isActive,
           },
           courier: {
@@ -97,6 +101,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
             courierCode: liveCourier.courierCode,
             vehicleType: liveCourier.vehicleType,
             plateNumber: liveCourier.plateNumber,
+            avatarUrl: liveCourier.avatarUrl,
           },
         };
       }
@@ -131,6 +136,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
           fullName:
             (user.user_metadata?.full_name as string) || "Admin JetFood Polman",
           phone: null,
+          avatarUrl: null,
           isActive: true,
         },
         courier: null,
@@ -158,6 +164,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
           role: "KURIR",
           fullName: matchedCourier.fullName,
           phone: matchedCourier.phone,
+          avatarUrl: matchedCourier.avatarUrl,
           isActive: active,
         },
         courier: active
@@ -166,6 +173,7 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
               courierCode: matchedCourier.courierCode,
               vehicleType: matchedCourier.vehicleType,
               plateNumber: matchedCourier.plateNumber,
+              avatarUrl: matchedCourier.avatarUrl,
             }
           : null,
       };

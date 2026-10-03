@@ -109,10 +109,10 @@ export async function loginAction(
   // 2. Check if logging in with Courier Code (without '@')
   if (!rawIdentifier.includes("@")) {
     const cleanCode = rawIdentifier.toUpperCase();
-    if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+    if (cleanCode.length < 2 || !/^[A-Z0-9][A-Z0-9-_]{1,24}$/.test(cleanCode)) {
       return {
         success: false,
-        error: "Format kode kurir tidak valid (contoh: JF-001).",
+        error: "Format kode kurir tidak valid (contoh: JF0001 atau JF-001).",
       };
     }
 
@@ -318,10 +318,10 @@ export async function loginWithBiometricAction(
   }
 
   const cleanCode = courierCode.trim().toUpperCase();
-  if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+  if (cleanCode.length < 2 || !/^[A-Z0-9][A-Z0-9-_]{1,24}$/.test(cleanCode)) {
     return {
       success: false,
-      error: "Format ID / Kode Kurir tidak valid (contoh: JF-001).",
+      error: "Format ID / Kode Kurir tidak valid (contoh: JF0001 atau JF-001).",
     };
   }
 
@@ -364,10 +364,10 @@ export async function loginCourierByIdAction(
   }
 
   const cleanCode = courierCode.trim().toUpperCase();
-  if (!/^JF-\d{3,6}$/.test(cleanCode)) {
+  if (cleanCode.length < 2 || !/^[A-Z0-9][A-Z0-9-_]{1,24}$/.test(cleanCode)) {
     return {
       success: false,
-      error: "Format ID / Kode Kurir tidak valid (contoh: JF-001).",
+      error: "Format ID / Kode Kurir tidak valid (contoh: JF0001 atau JF-001).",
     };
   }
 

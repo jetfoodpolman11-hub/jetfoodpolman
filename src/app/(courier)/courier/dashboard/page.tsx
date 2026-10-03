@@ -34,12 +34,13 @@ export default async function CourierDashboardPage() {
       <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[44px] px-7 pt-9 pb-12 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl">
         <div className="flex items-center gap-5">
           {/* Circular Courier Portrait Avatar */}
-          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md">
+          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md bg-white/10">
             <Image
-              src="/images/courier-avatar.png"
+              src={data.avatarUrl || "/images/courier-avatar.png"}
               alt={greetingName}
               width={112}
               height={112}
+              unoptimized={Boolean(data.avatarUrl)}
               className="h-full w-full object-cover scale-[1.03]"
               priority
             />
