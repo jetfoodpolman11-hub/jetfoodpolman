@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCourier, requireAdmin, requireAuth } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getWitaDateString, formatWitaDateTime } from "@/lib/date";
+import { validateClockInInput } from "@/lib/validations/attendance";
 
 export interface AttendanceRecord {
   id: string;
@@ -240,6 +241,18 @@ export async function clockInAction(
   const now = new Date();
   const todayWita = getWitaDateString(now);
   const nowIso = now.toISOString();
+
+  const validation = validateClockInInput({
+    courierId,
+    date: todayWita,
+    notes,
+  });
+  if (!validation.isValid) {
+    return {
+      success: false,
+      error: Object.values(validation.errors)[0] || "Data presensi tidak valid.",
+    };
+  }
 
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||

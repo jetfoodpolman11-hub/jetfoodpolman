@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test-phase11-security-audit.mjs && node scripts/test-phase12-full-qa.mjs"
+    "test": "node scripts/test-phase11-security-audit.mjs && node scripts/test-phase12-full-qa.mjs && node scripts/test-phase13-production-readiness.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
