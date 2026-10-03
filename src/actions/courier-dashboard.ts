@@ -56,20 +56,22 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
     session.profile?.avatarUrl || session.courier?.avatarUrl || null;
   const courierId = session.courier?.id;
 
-  const attendanceState = courierId
-    ? await getTodayAttendanceForCourier(courierId)
-    : {
-        hasClockedIn: false,
-        hasClockedOut: false,
-        clockInTime: null,
-        clockOutTime: null,
-        clockInNotes: null,
-        clockOutNotes: null,
-        status: "BELUM_ABSEN" as const,
-        statusLabel: "Belum Absen",
-      };
+  const [attendanceState, reports] = await Promise.all([
+    courierId
+      ? getTodayAttendanceForCourier(courierId)
+      : Promise.resolve({
+          hasClockedIn: false,
+          hasClockedOut: false,
+          clockInTime: null,
+          clockOutTime: null,
+          clockInNotes: null,
+          clockOutNotes: null,
+          status: "BELUM_ABSEN" as const,
+          statusLabel: "Belum Absen",
+        }),
+    getCourierDailyReports(),
+  ]);
 
-  const reports = await getCourierDailyReports();
   const todayReports = reports.filter((r) => r.date === todayWita);
   const totalOrders = todayReports.reduce((sum, r) => sum + r.orderCount, 0);
   const totalOmset = todayReports.reduce((sum, r) => sum + r.omset, 0);

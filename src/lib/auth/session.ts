@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -33,9 +34,9 @@ export interface CurrentSessionData {
 
 /**
  * Get current authenticated user profile and courier info from Server Components or Server Actions.
- * All dummy/demo courier directories have been removed — resolves strictly from Supabase or active Admin session.
+ * Memoized per request with React cache() so Layout + Page + Server Actions never repeat session queries.
  */
-export async function getCurrentSession(): Promise<CurrentSessionData | null> {
+export const getCurrentSession = cache(async (): Promise<CurrentSessionData | null> => {
   try {
     const cookieStore = await cookies();
     const mockRole = cookieStore.get("jf_mock_role")?.value as UserRole | undefined;
@@ -212,4 +213,4 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
     console.error("Error retrieving current session:", error);
     return null;
   }
-}
+});

@@ -112,7 +112,7 @@ async function uploadCourierAvatarToSupabase(
 }
 
 /**
- * Internal helper: Resolve all couriers from Supabase (PostgreSQL tables + Supabase Auth metadata)
+ * Internal helper: Resolve all couriers from Supabase (Fast single PostgreSQL join query)
  */
 export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> {
   const isPlaceholderEnv =
@@ -126,19 +126,7 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
   try {
     const adminClient = createAdminClient();
 
-    // Fetch auth.users first so we always have avatar_url and user_metadata
-    const { data: usersList } = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-    const authUserMap = new Map<string, Record<string, unknown>>();
-    if (usersList?.users) {
-      for (const u of usersList.users) {
-        authUserMap.set(u.id, (u.user_metadata || {}) as Record<string, unknown>);
-      }
-    }
-
-    // 1. Try querying PostgreSQL couriers + profiles tables first
+    // 1. Fast single PostgreSQL query on couriers + profiles (includes avatar_url)
     const { data, error } = await adminClient
       .from("couriers")
       .select(`
@@ -154,23 +142,19 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
           full_name,
           email,
           phone,
+          avatar_url,
           is_active
         )
       `)
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       const formatted: CourierWithProfile[] = [];
       for (const item of data) {
         const profile = Array.isArray(item.profiles)
           ? item.profiles[0]
           : item.profiles;
         if (profile) {
-          const meta = authUserMap.get(item.user_id) || {};
-          const avatarUrl =
-            typeof meta.avatar_url === "string" && meta.avatar_url
-              ? meta.avatar_url
-              : null;
           formatted.push({
             id: item.id,
             userId: item.user_id,
@@ -181,7 +165,7 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
             fullName: profile.full_name,
             email: profile.email,
             phone: profile.phone,
-            avatarUrl,
+            avatarUrl: profile.avatar_url || null,
             isActive: profile.is_active,
             createdAt: item.created_at,
           });
@@ -190,7 +174,12 @@ export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> 
       return formatted;
     }
 
-    // 2. Also read couriers provisioned in Supabase Auth (auth.users user_metadata)
+    // 2. Fallback to Supabase Auth metadata ONLY if PostgreSQL tables are not yet initialized
+    const { data: usersList } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
     if (!usersList?.users) {
       return [];
     }
@@ -423,6 +412,7 @@ export async function createCourierAction(
       full_name: fullName,
       email,
       phone,
+      avatar_url: avatarUrl,
       is_active: true,
     });
 
@@ -564,39 +554,39 @@ export async function updateCourierAction(
       ? uploadedAvatarUrl
       : existingTarget?.avatarUrl || null;
 
-  // 1. Update Supabase Auth metadata
-  await adminClient.auth.admin.updateUserById(userId, {
-    user_metadata: {
-      role: "KURIR",
-      courier_id: courierId,
-      full_name: fullName,
-      phone,
-      courier_code: courierCode,
-      vehicle_type: vehicleType || "Sepeda Motor",
-      plate_number: plateNumber,
-      avatar_url: finalAvatarUrl,
-      status: existingTarget?.status || "ACTIVE",
-      is_active: existingTarget?.isActive ?? true,
-    },
-  });
-
-  // 2. Update PostgreSQL tables if present
-  await adminClient
-    .from("profiles")
-    .update({
-      full_name: fullName,
-      phone,
-    })
-    .eq("id", userId);
-
-  await adminClient
-    .from("couriers")
-    .update({
-      courier_code: courierCode,
-      vehicle_type: vehicleType,
-      plate_number: plateNumber,
-    })
-    .eq("id", courierId);
+  // 1. Update PostgreSQL tables and Auth metadata in parallel
+  await Promise.all([
+    adminClient.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        role: "KURIR",
+        courier_id: courierId,
+        full_name: fullName,
+        phone,
+        courier_code: courierCode,
+        vehicle_type: vehicleType || "Sepeda Motor",
+        plate_number: plateNumber,
+        avatar_url: finalAvatarUrl,
+        status: existingTarget?.status || "ACTIVE",
+        is_active: existingTarget?.isActive ?? true,
+      },
+    }),
+    adminClient
+      .from("profiles")
+      .update({
+        full_name: fullName,
+        phone,
+        avatar_url: finalAvatarUrl,
+      })
+      .eq("id", userId),
+    adminClient
+      .from("couriers")
+      .update({
+        courier_code: courierCode,
+        vehicle_type: vehicleType,
+        plate_number: plateNumber,
+      })
+      .eq("id", courierId),
+  ]);
 
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
