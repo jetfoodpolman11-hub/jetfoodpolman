@@ -31,11 +31,11 @@ export default async function CourierDashboardPage() {
   return (
     <div className="space-y-6 pb-8 font-sans">
       {/* 1. TOP CURVED RED HERO BANNER (Matches reference mockup 1:1) */}
-      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-7 pt-9 pb-8 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl">
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-8 pb-8 text-white shadow-xs sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7 sm:pt-9">
         {/* Top Row: Avatar + Greeting & Courier Code / Plate */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4 sm:gap-5">
           {/* Circular Courier Portrait Avatar */}
-          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md bg-white/10">
+          <div className="h-20 w-20 sm:h-28 sm:w-28 rounded-full overflow-hidden shrink-0 shadow-md bg-white/10">
             <Image
               src={data.avatarUrl || "/images/courier-avatar.png"}
               alt={greetingName}
@@ -49,13 +49,21 @@ export default async function CourierDashboardPage() {
 
           {/* Greeting Text + Code & Plate */}
           <div className="min-w-0 flex-1">
-            <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white/95 block">
+            <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-white/95 block">
               KURIR JETFOOD POLMAN
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight mt-0.5 truncate">
+            <h1
+              className={`${
+                greetingName.length > 14
+                  ? "text-lg sm:text-2xl"
+                  : greetingName.length > 9
+                    ? "text-xl sm:text-3xl"
+                    : "text-2xl sm:text-4xl"
+              } font-black tracking-tight text-white leading-tight mt-0.5 break-words`}
+            >
               Halo, {greetingName}
             </h1>
-            <div className="flex items-center flex-wrap gap-x-6 gap-y-1 mt-2.5 text-xs sm:text-sm font-bold text-white/95 tracking-wide uppercase">
+            <div className="flex items-center flex-wrap gap-x-4 sm:gap-x-6 gap-y-1 mt-2 text-xs sm:text-sm font-bold text-white/95 tracking-wide uppercase">
               <span>{data.courierCode}</span>
               <span>{data.plateNumber || "-"}</span>
             </div>
@@ -63,27 +71,27 @@ export default async function CourierDashboardPage() {
         </div>
 
         {/* Middle Row: Kabupaten Polewali Mandar & Current Date */}
-        <div className="mt-7 flex items-start justify-between gap-4">
-          <div className="text-sm sm:text-base font-bold text-white leading-snug">
+        <div className="mt-6 sm:mt-7 flex items-start justify-between gap-3">
+          <div className="text-xs sm:text-base font-bold text-white leading-snug">
             <span className="block">Kabupaten</span>
             <span className="block">Polewali Mandar</span>
           </div>
-          <div className="text-sm sm:text-base font-bold text-white text-right leading-snug pt-0.5">
+          <div className="text-xs sm:text-base font-bold text-white text-right leading-snug pt-0.5">
             {data.todayDateFormatted}
           </div>
         </div>
 
         {/* Bottom Row: Quick Action Buttons (ABSENSI & INPUT LAPORAN) */}
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:gap-5">
+        <div className="mt-5 grid grid-cols-2 gap-3.5 sm:gap-5">
           <Link
             href="/courier/attendance"
-            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all"
+            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all whitespace-nowrap"
           >
             ABSENSI
           </Link>
           <Link
             href="/courier/reports/new"
-            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all"
+            className="flex h-10 sm:h-11 items-center justify-center rounded-xl bg-white px-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xs hover:bg-slate-100 active:scale-[0.98] transition-all whitespace-nowrap"
           >
             INPUT LAPORAN
           </Link>
@@ -94,12 +102,12 @@ export default async function CourierDashboardPage() {
       <div className="grid grid-cols-2 gap-3.5">
         {/* Order Hari Ini */}
         <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[10px] sm:text-[11px] uppercase font-extrabold tracking-wider text-slate-400 whitespace-nowrap">
               ORDER HARI INI
             </span>
-            <div className="h-8 w-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-              <Package className="h-4 w-4" />
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+              <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
@@ -113,12 +121,12 @@ export default async function CourierDashboardPage() {
 
         {/* Omset Hari Ini */}
         <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[10px] sm:text-[11px] uppercase font-extrabold tracking-wider text-slate-400 whitespace-nowrap">
               OMSET HARI INI
             </span>
-            <div className="h-8 w-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-4 w-4" />
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight truncate">
