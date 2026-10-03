@@ -199,6 +199,56 @@ export async function createCourierAction(
     return { success: false, error: firstError || "Data tidak valid" };
   }
 
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const dupEmail = MOCK_COURIERS.find(
+      (c) => c.email.toLowerCase() === email.toLowerCase()
+    );
+    if (dupEmail) {
+      return {
+        success: false,
+        error: `Email ${email} sudah terdaftar di sistem.`,
+      };
+    }
+
+    const dupCode = MOCK_COURIERS.find(
+      (c) => c.courierCode.toUpperCase() === courierCode.toUpperCase()
+    );
+    if (dupCode) {
+      return {
+        success: false,
+        error: `Kode kurir ${courierCode} sudah digunakan. Gunakan kode lain.`,
+      };
+    }
+
+    const newCourier: CourierWithProfile = {
+      id: `mock-courier-rec-${Date.now()}`,
+      userId: `mock-courier-user-${Date.now()}`,
+      courierCode,
+      vehicleType: vehicleType || "Sepeda Motor",
+      plateNumber,
+      status: "ACTIVE",
+      fullName,
+      email,
+      phone,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    MOCK_COURIERS.unshift(newCourier);
+    revalidatePath("/admin/couriers");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
+
+    return {
+      success: true,
+      message: `Kurir ${fullName} (${courierCode}) berhasil didaftarkan.`,
+    };
+  }
+
   const supabase = await createClient();
 
   // 2. Check duplicate email in profiles
@@ -289,6 +339,7 @@ export async function createCourierAction(
 
     revalidatePath("/admin/couriers");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
 
     return {
       success: true,
@@ -324,6 +375,39 @@ export async function updateCourierAction(
   }
   if (!courierCode) {
     return { success: false, error: "Kode kurir wajib diisi" };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const target = MOCK_COURIERS.find((c) => c.id === courierId);
+    if (!target) {
+      return { success: false, error: "Data kurir tidak ditemukan." };
+    }
+
+    const conflict = MOCK_COURIERS.find(
+      (c) => c.id !== courierId && c.courierCode.toUpperCase() === courierCode
+    );
+    if (conflict) {
+      return {
+        success: false,
+        error: `Kode kurir ${courierCode} sudah digunakan oleh kurir lain.`,
+      };
+    }
+
+    target.fullName = fullName;
+    target.phone = phone;
+    target.courierCode = courierCode;
+    target.vehicleType = vehicleType;
+    target.plateNumber = plateNumber;
+
+    revalidatePath("/admin/couriers");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
+
+    return { success: true, message: "Data kurir berhasil diperbarui." };
   }
 
   const supabase = await createClient();
@@ -372,6 +456,7 @@ export async function updateCourierAction(
 
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/analytics");
 
   return { success: true, message: "Data kurir berhasil diperbarui." };
 }
@@ -385,9 +470,32 @@ export async function toggleCourierStatusAction(
   targetStatus: "ACTIVE" | "INACTIVE"
 ): Promise<ActionResult> {
   await requireAdmin();
-  const supabase = await createClient();
 
   const isTargetActive = targetStatus === "ACTIVE";
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const target = MOCK_COURIERS.find((c) => c.id === courierId);
+    if (!target) {
+      return { success: false, error: "Data kurir tidak ditemukan." };
+    }
+    target.status = targetStatus;
+    target.isActive = isTargetActive;
+
+    revalidatePath("/admin/couriers");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
+
+    return {
+      success: true,
+      message: `Status kurir berhasil diubah menjadi ${targetStatus === "ACTIVE" ? "Aktif" : "Nonaktif"}.`,
+    };
+  }
+
+  const supabase = await createClient();
 
   // 1. Update couriers table
   const { error: courierErr } = await supabase
@@ -411,6 +519,7 @@ export async function toggleCourierStatusAction(
 
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/analytics");
 
   return {
     success: true,
@@ -431,6 +540,21 @@ export async function resetCourierPasswordAction(
     return {
       success: false,
       error: "Kata sandi baru minimal harus 6 karakter.",
+    };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const target = MOCK_COURIERS.find((c) => c.userId === userId);
+    if (!target) {
+      return { success: false, error: "Akun kurir tidak ditemukan." };
+    }
+    return {
+      success: true,
+      message: "Kata sandi kurir berhasil diperbarui secara aman.",
     };
   }
 

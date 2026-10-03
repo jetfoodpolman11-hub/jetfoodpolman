@@ -29,7 +29,7 @@ interface CourierTableProps {
 
 export function CourierTable({ initialCouriers }: CourierTableProps) {
   const router = useRouter();
-  const [couriers] = useState<CourierWithProfile[]>(initialCouriers);
+  const couriers = initialCouriers;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 

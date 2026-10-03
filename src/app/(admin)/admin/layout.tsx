@@ -97,6 +97,55 @@ export default async function AdminLayout({
             <LogoutButton />
           </div>
         </div>
+
+        {/* Mobile & Small Tablet Navigation Strip (< 768px) */}
+        <nav
+          aria-label="Navigasi Mobile Admin"
+          className="flex md:hidden items-center gap-1.5 overflow-x-auto border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-xs font-semibold text-slate-600"
+        >
+          <Link
+            href="/admin/dashboard"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5 text-red-600" />
+            Dashboard
+          </Link>
+          <Link
+            href="/admin/couriers"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <Users className="h-3.5 w-3.5 text-red-600" />
+            Kurir
+          </Link>
+          <Link
+            href="/admin/attendance"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <CalendarCheck className="h-3.5 w-3.5 text-red-600" />
+            Absensi
+          </Link>
+          <Link
+            href="/admin/reports"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <FileText className="h-3.5 w-3.5 text-red-600" />
+            Laporan
+          </Link>
+          <Link
+            href="/admin/analytics"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <BarChart3 className="h-3.5 w-3.5 text-red-600" />
+            Analitik
+          </Link>
+          <Link
+            href="/admin/master-data"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 border border-slate-200/80 hover:text-slate-900 hover:border-slate-300 transition-colors"
+          >
+            <Database className="h-3.5 w-3.5 text-red-600" />
+            Master Data
+          </Link>
+        </nav>
       </header>
 
       {/* Main Admin Content Container */}

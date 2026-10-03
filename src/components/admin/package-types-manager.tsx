@@ -20,7 +20,7 @@ interface PackageTypesManagerProps {
 
 export function PackageTypesManager({ initialItems }: PackageTypesManagerProps) {
   const router = useRouter();
-  const [items] = useState<PackageTypeItem[]>(initialItems);
+  const items = initialItems;
 
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -128,7 +128,7 @@ export function PackageTypesManager({ initialItems }: PackageTypesManagerProps) 
       </div>
 
       {/* Table view */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <tr>

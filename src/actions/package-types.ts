@@ -94,6 +94,39 @@ export async function createPackageTypeAction(
     return { success: false, error: "Nama jenis paket wajib diisi." };
   }
 
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const dup = fallbackPackageTypes.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (dup) {
+      return {
+        success: false,
+        error: `Jenis paket "${name}" sudah ada di sistem.`,
+      };
+    }
+
+    const now = new Date().toISOString();
+    fallbackPackageTypes.push({
+      id: `pkg-${Date.now()}`,
+      name,
+      description,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return {
+      success: true,
+      message: `Jenis paket "${name}" berhasil ditambahkan.`,
+    };
+  }
+
   const supabase = await createClient();
 
   // Check duplicate name
@@ -121,6 +154,7 @@ export async function createPackageTypeAction(
   }
 
   revalidatePath("/admin/master-data");
+  revalidatePath("/courier/reports/new");
   return {
     success: true,
     message: `Jenis paket "${name}" berhasil ditambahkan.`,
@@ -141,6 +175,35 @@ export async function updatePackageTypeAction(
 
   if (!name) {
     return { success: false, error: "Nama jenis paket tidak boleh kosong." };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const target = fallbackPackageTypes.find((p) => p.id === id);
+    if (!target) {
+      return { success: false, error: "Jenis paket tidak ditemukan." };
+    }
+
+    const conflict = fallbackPackageTypes.find(
+      (p) => p.id !== id && p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (conflict) {
+      return {
+        success: false,
+        error: `Nama jenis paket "${name}" sudah digunakan paket lain.`,
+      };
+    }
+
+    target.name = name;
+    target.description = description;
+    target.updatedAt = new Date().toISOString();
+
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return { success: true, message: "Jenis paket berhasil diperbarui." };
   }
 
   const supabase = await createClient();
@@ -170,6 +233,7 @@ export async function updatePackageTypeAction(
   }
 
   revalidatePath("/admin/master-data");
+  revalidatePath("/courier/reports/new");
   return { success: true, message: "Jenis paket berhasil diperbarui." };
 }
 
@@ -181,9 +245,30 @@ export async function togglePackageTypeStatusAction(
   currentStatus: boolean
 ): Promise<ActionResult> {
   await requireAdmin();
-  const supabase = await createClient();
 
   const newStatus = !currentStatus;
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const target = fallbackPackageTypes.find((p) => p.id === id);
+    if (!target) {
+      return { success: false, error: "Jenis paket tidak ditemukan." };
+    }
+    target.isActive = newStatus;
+    target.updatedAt = new Date().toISOString();
+
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return {
+      success: true,
+      message: `Status paket berhasil diubah menjadi ${newStatus ? "Aktif" : "Nonaktif"}.`,
+    };
+  }
+
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("package_types")
@@ -195,6 +280,7 @@ export async function togglePackageTypeStatusAction(
   }
 
   revalidatePath("/admin/master-data");
+  revalidatePath("/courier/reports/new");
   return {
     success: true,
     message: `Status paket berhasil diubah menjadi ${newStatus ? "Aktif" : "Nonaktif"}.`,

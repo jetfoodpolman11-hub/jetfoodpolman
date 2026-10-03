@@ -76,6 +76,10 @@ export class EmsifaRegionProvider implements RegionProvider {
 
   async getDistricts(regencyId: string): Promise<District[]> {
     if (!regencyId) return [];
+    // Authoritative 4 operational districts for Kabupaten Polewali Mandar (7602)
+    if (regencyId === "7602") {
+      return this.fallbackProvider.getDistricts("7602");
+    }
     const url = `${this.baseUrl}/districts/${regencyId}.json`;
     try {
       return await this.fetchWithTimeout<District[]>(url);
@@ -87,6 +91,10 @@ export class EmsifaRegionProvider implements RegionProvider {
 
   async getVillages(districtId: string): Promise<Village[]> {
     if (!districtId) return [];
+    // Authoritative 31 official kelurahan/desa for Polewali Mandar's 4 operational districts
+    if (districtId.startsWith("7602")) {
+      return this.fallbackProvider.getVillages(districtId);
+    }
     const url = `${this.baseUrl}/villages/${districtId}.json`;
     try {
       return await this.fetchWithTimeout<Village[]>(url);
