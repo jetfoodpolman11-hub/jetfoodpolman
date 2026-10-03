@@ -63,27 +63,16 @@ export default async function CourierEditReportPage({
   ]);
 
   return (
-    <div className="space-y-5">
-      {/* Back Link */}
-      <div>
-        <Link
-          href="/courier/history"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Kembali ke Riwayat Laporan</span>
-        </Link>
-      </div>
-
-      {/* Page Header */}
-      <div className="rounded-2xl bg-[#DC0000] p-5 text-white shadow-[0_6px_18px_rgba(220,0,0,0.2)]">
-        <div className="flex items-center gap-2">
+    <div className="space-y-5 pb-8 font-sans">
+      {/* Top Curved Red Hero Banner (Merged with Header) */}
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-7 pb-8 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7">
+        <div className="flex items-center gap-2.5">
           <Edit3 className="h-5 w-5 text-white shrink-0" />
           <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
             Perbarui Laporan Operasional
           </h1>
         </div>
-        <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
+        <p className="text-xs text-white/90 mt-2 leading-relaxed">
           Koreksi rute, jumlah order paket, omset, atau catatan untuk tanggal {report.date}.
         </p>
       </div>

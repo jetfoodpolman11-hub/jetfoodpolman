@@ -6,7 +6,6 @@ import { clockInAction, clockOutAction, type TodayAttendanceState } from "@/acti
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Clock,
   CheckCircle2,
   AlertCircle,
   LogIn,
@@ -19,13 +18,12 @@ import {
 
 interface AttendanceCardProps {
   initialState: TodayAttendanceState;
-  todayDateFormatted: string;
+  todayDateFormatted?: string;
   courierName: string;
 }
 
 export function AttendanceCard({
   initialState,
-  todayDateFormatted,
   courierName,
 }: AttendanceCardProps) {
   const router = useRouter();
@@ -130,25 +128,7 @@ export function AttendanceCard({
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm overflow-hidden">
-      {/* Header Accent */}
-      <div className="bg-[#DC0000] px-5 py-4 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-white" />
-            <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-              Presensi Mandiri Lapangan
-            </span>
-          </div>
-          <span className="text-xs font-semibold text-white/90">
-            Zona WITA (UTC+8)
-          </span>
-        </div>
-        <p className="text-base font-extrabold mt-1 text-white">
-          {todayDateFormatted}
-        </p>
-      </div>
-
+    <Card className="border-slate-200 shadow-sm overflow-hidden rounded-3xl">
       <CardContent className="p-5 space-y-5">
         {/* Feedback Alert */}
         {feedback && (

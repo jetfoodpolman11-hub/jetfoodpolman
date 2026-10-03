@@ -7,7 +7,6 @@ import { formatRupiah, formatNumber } from "@/lib/utils";
 import { formatWitaDateFull } from "@/lib/date";
 import {
   History,
-  ArrowLeft,
   FilePlus,
   Package,
   TrendingUp,
@@ -41,40 +40,21 @@ export default async function CourierHistoryPage({
   const totalOmset = reports.reduce((acc, r) => acc + r.omset, 0);
 
   return (
-    <div className="space-y-5">
-      {/* Back to Dashboard Navigation */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/courier/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Kembali ke Beranda</span>
-        </Link>
-
-        <Link
-          href="/courier/reports/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-2xs"
-        >
-          <FilePlus className="h-3.5 w-3.5" />
-          <span>Input Laporan Baru</span>
-        </Link>
-      </div>
-
-      {/* Header Banner */}
-      <div className="rounded-2xl bg-[#DC0000] p-5 text-white shadow-[0_6px_18px_rgba(220,0,0,0.2)]">
+    <div className="space-y-5 pb-8 font-sans">
+      {/* Top Curved Red Hero Banner (Merged with Header) */}
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-7 pb-8 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <History className="h-5 w-5 text-white shrink-0" />
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
               Riwayat Operasional Saya
             </h1>
           </div>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
+          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white whitespace-nowrap">
             {totalReports} Laporan
           </span>
         </div>
-        <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
+        <p className="text-xs text-white/90 mt-2 leading-relaxed">
           Arsip seluruh laporan rute, jumlah order paket, dan omset yang Anda kirimkan.
         </p>
       </div>

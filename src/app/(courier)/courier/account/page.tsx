@@ -33,8 +33,8 @@ export default async function CourierAccountPage() {
 
   return (
     <div className="space-y-5 pb-8 font-sans">
-      {/* 1. Profile Header Card */}
-      <div className="rounded-3xl bg-[#DC0000] p-6 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] relative overflow-hidden border border-red-700/40">
+      {/* 1. Profile Header Card (Merged with Top Header) */}
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-7 pb-8 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] relative overflow-hidden sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7">
         <div className="flex flex-col items-center text-center space-y-3 relative z-10">
           {/* Avatar with White Ring Accent */}
           <div className="relative">

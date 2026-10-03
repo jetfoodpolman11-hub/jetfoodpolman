@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireCourier } from "@/lib/auth/guards";
 import {
   getTodayAttendanceForCourier,
@@ -7,7 +6,7 @@ import {
 import { AttendanceCard } from "@/components/courier/attendance-card";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, History, Calendar, AlertCircle, MapPin } from "lucide-react";
+import { History, Calendar, AlertCircle, MapPin, Clock } from "lucide-react";
 import { formatWitaDateFull } from "@/lib/date";
 
 export const metadata = {
@@ -27,16 +26,26 @@ export default async function CourierAttendancePage() {
   const todayDateFormatted = formatWitaDateFull(new Date());
 
   return (
-    <div className="space-y-5">
-      {/* Back to Dashboard Navigation */}
-      <div>
-        <Link
-          href="/courier/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Kembali ke Beranda</span>
-        </Link>
+    <div className="space-y-5 pb-8 font-sans">
+      {/* Top Curved Red Hero Banner (Merged with Header) */}
+      <div className="-mx-4 -mt-6 bg-[#DC0000] rounded-b-[40px] px-5 pt-7 pb-8 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-7">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-white shrink-0" />
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
+              Presensi Mandiri Lapangan
+            </h1>
+          </div>
+          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white whitespace-nowrap">
+            Zona WITA (UTC+8)
+          </span>
+        </div>
+        <p className="text-sm font-bold text-white mt-2">
+          {todayDateFormatted}
+        </p>
+        <p className="text-xs text-white/90 mt-1 leading-relaxed">
+          Catat kehadiran masuk dan pulang kerja Anda secara langsung dari titik lokasi bertugas di Polewali Mandar.
+        </p>
       </div>
 
       {/* Primary Action: Today's Attendance Card */}
