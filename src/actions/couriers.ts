@@ -732,3 +732,87 @@ export async function resetCourierPasswordAction(
     };
   }
 }
+
+/**
+ * Server Action: Permanently delete a courier account and all associated records from Supabase (Admin only)
+ */
+export async function deleteCourierAction(
+  courierId: string,
+  userId: string
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  if (!courierId || !userId) {
+    return { success: false, error: "ID kurir tidak valid." };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const idx = MOCK_COURIERS.findIndex(
+      (c) => c.id === courierId || c.userId === userId
+    );
+    if (idx === -1) {
+      return { success: false, error: "Data kurir tidak ditemukan." };
+    }
+    MOCK_COURIERS.splice(idx, 1);
+
+    revalidatePath("/admin/couriers");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/reports");
+
+    return {
+      success: true,
+      message: "Akun kurir berhasil dihapus permanen.",
+    };
+  }
+
+  try {
+    const adminClient = createAdminClient();
+
+    // 1. Delete associated operational records first to satisfy foreign key constraints
+    await Promise.all([
+      adminClient.from("daily_reports").delete().eq("courier_id", courierId),
+      adminClient.from("attendance").delete().eq("courier_id", courierId),
+    ]);
+
+    // 2. Delete courier record from public.couriers
+    await adminClient.from("couriers").delete().eq("id", courierId);
+    await adminClient.from("couriers").delete().eq("user_id", userId);
+
+    // 3. Delete profile record from public.profiles
+    await adminClient.from("profiles").delete().eq("id", userId);
+
+    // 4. Delete user account from Supabase Auth (auth.users)
+    const { error: authDelErr } =
+      await adminClient.auth.admin.deleteUser(userId);
+    if (authDelErr && !authDelErr.message.toLowerCase().includes("not found")) {
+      console.error("Warning deleting auth user:", authDelErr.message);
+    }
+
+    revalidatePath("/admin/couriers");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/analytics");
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/reports");
+
+    return {
+      success: true,
+      message: "Akun kurir beserta datanya berhasil dihapus permanen dari Supabase.",
+    };
+  } catch (err: unknown) {
+    console.error("Exception deleting courier:", err);
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Gagal menghapus akun kurir dari database.",
+    };
+  }
+}
+

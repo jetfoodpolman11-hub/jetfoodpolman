@@ -19,6 +19,8 @@ import {
   MapPin,
   ArrowRight,
   BarChart3,
+  PieChart,
+  TrendingUp,
   Info,
 } from "lucide-react";
 import { formatRupiah, formatNumber } from "@/lib/utils";
@@ -50,6 +52,38 @@ export default async function AdminAnalyticsPage({
 
   const { summary, courierRecap, routeRecap } = data;
 
+  // Calculations for Visual Diagrams
+  const totalGrossRevenue =
+    summary.totalOmset + summary.totalOjolAmount + summary.totalJastipAmount;
+  const pctPaket =
+    totalGrossRevenue > 0
+      ? Math.round((summary.totalOmset / totalGrossRevenue) * 100)
+      : 0;
+  const pctOjol =
+    totalGrossRevenue > 0
+      ? Math.round((summary.totalOjolAmount / totalGrossRevenue) * 100)
+      : 0;
+  const pctJastip =
+    totalGrossRevenue > 0
+      ? Math.max(0, 100 - pctPaket - pctOjol)
+      : 0;
+
+  const maxCourierOrders = Math.max(
+    1,
+    ...courierRecap.map((c) => c.totalOrders + c.ojolCount + c.jastipCount)
+  );
+  const maxCourierOmset = Math.max(
+    1,
+    ...courierRecap.map((c) => c.totalOmset + c.ojolAmount + c.jastipAmount)
+  );
+  const maxRouteOrders = Math.max(1, ...routeRecap.map((r) => r.totalOrders));
+
+  // SVG Donut stroke-dasharray calculations (circumference = 2 * PI * 42 ≈ 263.89)
+  const circumference = 2 * Math.PI * 42;
+  const dashPaket = (pctPaket / 100) * circumference;
+  const dashOjol = (pctOjol / 100) * circumference;
+  const dashJastip = (pctJastip / 100) * circumference;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -60,7 +94,7 @@ export default async function AdminAnalyticsPage({
             <span>Rekap Operasional &amp; Analitik</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Rekapitulasi data faktual operasional harian, kehadiran kurir, dan distribusi rute di Kabupaten Polewali Mandar.
+            Rekapitulasi data faktual operasional harian, diagram visual, kehadiran kurir, dan distribusi rute di Kabupaten Polewali Mandar.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -68,12 +102,15 @@ export default async function AdminAnalyticsPage({
         </div>
       </div>
 
-      {/* Period Filter Bar */}
+      {/* Period Filter Bar + Export PDF/Excel Buttons */}
       <AnalyticsPeriodFilter
         currentPeriod={data.period}
         startDate={data.startDate}
         endDate={data.endDate}
         periodLabel={data.periodLabel}
+        summary={summary}
+        courierRecap={courierRecap}
+        routeRecap={routeRecap}
       />
 
       {/* 1. STATISTIK UTAMA (6 Required Metrics) */}
@@ -196,6 +233,286 @@ export default async function AdminAnalyticsPage({
             <span className="text-xs text-slate-500">
               Laporan operasional yang tercatat resmi di database
             </span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 1.5 VISUALISASI DIAGRAM OPERASIONAL (Charts Section) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* DIAGRAM 1: Grafik Batang Aktivitas & Omset per Kurir (7 Cols) */}
+        <Card className="lg:col-span-7 border-slate-200 shadow-2xs">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-red-600" />
+                  <span>Diagram Aktivitas &amp; Omset per Kurir</span>
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500 mt-0.5">
+                  Perbandingan visual jumlah order (Paket, Ojol, Jastip) dan akumulasi omset tiap kurir.
+                </CardDescription>
+              </div>
+              <div className="hidden sm:flex items-center gap-3 text-[10px] font-bold">
+                <span className="flex items-center gap-1 text-slate-700">
+                  <span className="h-2.5 w-2.5 rounded-xs bg-red-600 inline-block" />
+                  Order &amp; Trip
+                </span>
+                <span className="flex items-center gap-1 text-slate-700">
+                  <span className="h-2.5 w-2.5 rounded-xs bg-emerald-600 inline-block" />
+                  Omset (Rp)
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5">
+            {courierRecap.length === 0 ? (
+              <div className="py-10 text-center text-xs text-slate-400">
+                Belum ada data kurir untuk ditampilkan dalam diagram.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {courierRecap.map((c) => {
+                  const totalActivity = c.totalOrders + c.ojolCount + c.jastipCount;
+                  const totalRev = c.totalOmset + c.ojolAmount + c.jastipAmount;
+                  const activityWidth = Math.max(
+                    totalActivity > 0 ? 6 : 2,
+                    Math.round((totalActivity / maxCourierOrders) * 100)
+                  );
+                  const revWidth = Math.max(
+                    totalRev > 0 ? 6 : 2,
+                    Math.round((totalRev / maxCourierOmset) * 100)
+                  );
+
+                  return (
+                    <div
+                      key={c.courierId}
+                      className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-slate-900 text-white px-2 py-0.5 text-[10px] font-mono font-bold">
+                            {c.courierCode}
+                          </span>
+                          <span className="font-bold text-slate-900">
+                            {c.courierName}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          {c.attendanceDays} hari hadir • {c.reportCount} laporan
+                        </span>
+                      </div>
+
+                      {/* Bar 1: Volume Order + Ojol + Jastip */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-600 font-medium">
+                            Volume: <strong>{c.totalOrders}</strong> paket,{" "}
+                            <strong>{c.ojolCount}</strong> ojol,{" "}
+                            <strong>{c.jastipCount}</strong> jastip
+                          </span>
+                          <span className="font-bold text-red-600">
+                            {formatNumber(totalActivity)} transaksi
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-slate-200/80 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-500"
+                            style={{ width: `${activityWidth}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bar 2: Total Nilai Rupiah */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-600 font-medium">
+                            Total Nilai Transaksi (Paket + Ojol + Jastip)
+                          </span>
+                          <span className="font-bold text-emerald-700">
+                            {formatRupiah(totalRev)}
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-slate-200/80 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 transition-all duration-500"
+                            style={{ width: `${revWidth}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* DIAGRAM 2: Donut Chart Komposisi Pendapatan (5 Cols) */}
+        <Card className="lg:col-span-5 border-slate-200 shadow-2xs">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-3">
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-red-600" />
+              <span>Diagram Komposisi Pendapatan</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Proporsi nilai transaksi dari Pengantaran Paket, Ojol, dan Jastip.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 flex flex-col justify-between space-y-5">
+            {/* SVG Donut Ring */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-2">
+              <div className="relative h-36 w-36 shrink-0 flex items-center justify-center">
+                <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    fill="transparent"
+                    stroke="#f1f5f9"
+                    strokeWidth="12"
+                  />
+                  {totalGrossRevenue > 0 && (
+                    <>
+                      {/* Segment 1: Paket (Emerald) */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        stroke="#059669"
+                        strokeWidth="12"
+                        strokeDasharray={`${dashPaket} ${circumference}`}
+                        strokeDashoffset="0"
+                      />
+                      {/* Segment 2: Ojol (Orange) */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        stroke="#ea580c"
+                        strokeWidth="12"
+                        strokeDasharray={`${dashOjol} ${circumference}`}
+                        strokeDashoffset={-dashPaket}
+                      />
+                      {/* Segment 3: Jastip (Blue) */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        stroke="#2563eb"
+                        strokeWidth="12"
+                        strokeDasharray={`${dashJastip} ${circumference}`}
+                        strokeDashoffset={-(dashPaket + dashOjol)}
+                      />
+                    </>
+                  )}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    Total Nilai
+                  </span>
+                  <span className="text-xs font-black text-slate-900 leading-tight mt-0.5">
+                    {formatRupiah(totalGrossRevenue)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Legend Breakdown */}
+              <div className="w-full space-y-2.5 text-xs">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/70 border border-emerald-100">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-xs bg-emerald-600 shrink-0" />
+                    <span className="font-bold text-slate-800">Omset Paket</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-emerald-700 block">
+                      {pctPaket}%
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {formatRupiah(summary.totalOmset)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-orange-50/70 border border-orange-100">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-xs bg-orange-600 shrink-0" />
+                    <span className="font-bold text-slate-800">Nilai Ojol</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-orange-700 block">
+                      {pctOjol}%
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {formatRupiah(summary.totalOjolAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/70 border border-blue-100">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-xs bg-blue-600 shrink-0" />
+                    <span className="font-bold text-slate-800">Nilai Jastip</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-blue-700 block">
+                      {pctJastip}%
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {formatRupiah(summary.totalJastipAmount)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DIAGRAM 3: Grafik Distribusi Rute Terpadat */}
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-red-600" />
+                  <span>Diagram Rute Pengantaran Terpadat</span>
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Top {Math.min(4, routeRecap.length)} Rute
+                </span>
+              </div>
+
+              {routeRecap.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2 text-center">
+                  Belum ada data rute pada periode ini.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {routeRecap.slice(0, 4).map((r) => {
+                    const barW = Math.max(
+                      8,
+                      Math.round((r.totalOrders / maxRouteOrders) * 100)
+                    );
+                    return (
+                      <div key={r.routeKey} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-slate-800 truncate max-w-[200px]">
+                            {r.originDisplay} → {r.destDisplay}
+                          </span>
+                          <span className="font-bold text-slate-900 shrink-0">
+                            {r.totalOrders} paket ({formatRupiah(r.totalOmset)})
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-slate-900"
+                            style={{ width: `${barW}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

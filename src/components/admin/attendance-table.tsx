@@ -6,8 +6,9 @@ import { AttendanceCorrectionModal } from "./attendance-correction-modal";
 import { Pagination } from "./pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit3, Clock, AlertCircle } from "lucide-react";
+import { Edit3, Clock, AlertCircle, FileSpreadsheet, FileDown } from "lucide-react";
 import { formatWitaDateFull } from "@/lib/date";
+import { exportToExcel, exportToPdf } from "@/lib/export-utils";
 
 interface AttendanceTableProps {
   records: AttendanceRecord[];
@@ -26,9 +27,84 @@ export function AttendanceTable({
 }: AttendanceTableProps) {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
 
+  const buildExportConfig = () => {
+    const completedOut = records.filter((r) => !!r.clockOutTime).length;
+    const activeInField = records.filter((r) => !r.clockOutTime).length;
+    const dateSample = records[0]?.date
+      ? formatWitaDateFull(records[0].date)
+      : "Semua Tanggal";
+
+    return {
+      fileName: `Presensi_Kurir_JetFood_${records[0]?.date || "Rekap"}`,
+      title: "Laporan Presensi & Kehadiran Kurir",
+      subtitle: `Periode / Tanggal: ${dateSample} (WITA) — Total Data: ${total} Presensi`,
+      summaryItems: [
+        { label: "Total Hadir", value: `${total} Kurir` },
+        { label: "Sedang Bertugas", value: `${activeInField} Kurir` },
+        { label: "Selesai Pulang", value: `${completedOut} Kurir` },
+      ],
+      tables: [
+        {
+          sectionTitle: "Daftar Presensi Kehadiran Kurir",
+          headers: [
+            "No",
+            "Kode Kurir",
+            "Nama Kurir",
+            "Tanggal",
+            "Jam Masuk",
+            "Jam Pulang",
+            "Status",
+            "Catatan Masuk",
+            "Catatan Pulang / Audit",
+          ],
+          rows: records.map((item, idx) => [
+            (page - 1) * perPage + idx + 1,
+            item.courierCode || "JF-KURIR",
+            item.courierName || "Kurir",
+            formatWitaDateFull(item.date),
+            item.clockInTimeFormatted,
+            item.clockOutTimeFormatted || "Belum checkout",
+            item.status === "PULANG" ? "Selesai Pulang" : "Sudah Masuk",
+            item.clockInNotes || "-",
+            item.clockOutNotes || "-",
+          ]),
+        },
+      ],
+    };
+  };
+
   return (
     <>
       <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        {/* Export Action Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50/60">
+          <div className="text-xs font-bold text-slate-700">
+            Data Presensi Kehadiran ({total} baris)
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => exportToExcel(buildExportConfig())}
+              className="gap-1.5 border-emerald-300 bg-emerald-50/80 text-emerald-800 hover:bg-emerald-100 text-xs font-bold"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+              <span>Download Excel (.xls)</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => exportToPdf(buildExportConfig())}
+              className="gap-1.5 border-red-300 bg-red-50/80 text-red-800 hover:bg-red-100 text-xs font-bold"
+            >
+              <FileDown className="h-3.5 w-3.5 text-red-700" />
+              <span>Download PDF</span>
+            </Button>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>

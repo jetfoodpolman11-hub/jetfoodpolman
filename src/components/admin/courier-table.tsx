@@ -9,6 +9,7 @@ import { EditCourierModal } from "./edit-courier-modal";
 import { ResetPasswordModal } from "./reset-password-modal";
 import {
   toggleCourierStatusAction,
+  deleteCourierAction,
   type CourierWithProfile,
 } from "@/actions/couriers";
 import {
@@ -18,6 +19,7 @@ import {
   KeyRound,
   PowerOff,
   Power,
+  Trash2,
   Phone,
   Mail,
   Truck,
@@ -52,6 +54,19 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
 
     startTransition(async () => {
       await toggleCourierStatusAction(courier.id, courier.userId, newStatus);
+      router.refresh();
+    });
+  };
+
+  const handleDeleteCourier = (courier: CourierWithProfile) => {
+    const confirmMsg = `HAPUS PERMANEN KURIR?\n\nApakah Anda yakin ingin menghapus akun kurir "${courier.fullName}" (${courier.courierCode}) beserta seluruh riwayat absensi dan laporannya dari database Supabase?\n\nTindakan ini tidak dapat dibatalkan.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    startTransition(async () => {
+      const res = await deleteCourierAction(courier.id, courier.userId);
+      if (!res.success && res.error) {
+        window.alert(res.error);
+      }
       router.refresh();
     });
   };
@@ -215,7 +230,7 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
                         disabled={isPending}
                         className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                           courier.status === "ACTIVE"
-                            ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                            ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                             : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                         }`}
                         title={
@@ -229,6 +244,16 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
                         ) : (
                           <Power className="h-4 w-4" />
                         )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCourier(courier)}
+                        disabled={isPending}
+                        className="p-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                        title="Hapus permanen kurir"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -301,7 +326,7 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
                 <Button
                   size="sm"
                   variant="outline"
@@ -320,11 +345,20 @@ export function CourierTable({ initialCouriers }: CourierTableProps) {
                 </Button>
                 <Button
                   size="sm"
-                  variant={courier.status === "ACTIVE" ? "danger" : "secondary"}
+                  variant="secondary"
                   onClick={() => handleToggleStatus(courier)}
                   disabled={isPending}
                 >
-                  {courier.status === "ACTIVE" ? "Matikan" : "Aktifkan"}
+                  {courier.status === "ACTIVE" ? "Nonaktifkan" : "Aktifkan"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleDeleteCourier(courier)}
+                  disabled={isPending}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Hapus
                 </Button>
               </div>
             </div>

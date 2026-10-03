@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { formatWitaDateFull } from "@/lib/date";
+import { exportToExcel, exportToPdf } from "@/lib/export-utils";
 import {
   Eye,
   AlertCircle,
   MapPin,
   Bike,
   ShoppingBag,
+  FileSpreadsheet,
+  FileDown,
 } from "lucide-react";
 
 interface ReportTableProps {
@@ -30,8 +33,112 @@ export function ReportTable({
   total,
   perPage,
 }: ReportTableProps) {
+  const buildExportConfig = () => {
+    const pageOrders = reports.reduce((s, r) => s + r.orderCount, 0);
+    const pageOmset = reports.reduce((s, r) => s + r.omset, 0);
+    const pageOjolCount = reports.reduce((s, r) => s + r.ojolCount, 0);
+    const pageOjolAmt = reports.reduce((s, r) => s + r.ojolAmount, 0);
+    const pageJastipCount = reports.reduce((s, r) => s + r.jastipCount, 0);
+    const pageJastipAmt = reports.reduce((s, r) => s + r.jastipAmount, 0);
+
+    return {
+      fileName: `Laporan_Operasional_JetFood_Halaman_${page}`,
+      title: "Laporan Harian Operasional Kurir",
+      subtitle: `Halaman ${page} dari ${totalPages} — Total Data Terfilter: ${total} Laporan`,
+      summaryItems: [
+        { label: "Total Laporan", value: `${reports.length} Laporan` },
+        { label: "Volume Order Paket", value: `${pageOrders} Paket` },
+        { label: "Akumulasi Omset Paket", value: formatRupiah(pageOmset) },
+        {
+          label: "Total Ojol & Jastip",
+          value: `${pageOjolCount + pageJastipCount}x (${formatRupiah(pageOjolAmt + pageJastipAmt)})`,
+        },
+      ],
+      tables: [
+        {
+          sectionTitle: "Daftar Rincian Laporan Harian Kurir",
+          headers: [
+            "No",
+            "Tanggal",
+            "Kode Kurir",
+            "Nama Kurir",
+            "Rute (Wilayah Asal -> Tujuan)",
+            "Jenis Paket",
+            "Order Paket",
+            "Omset Paket",
+            "Ojol (Trip & Nilai)",
+            "Jastip (Order & Nilai)",
+            "Catatan",
+          ],
+          rows: reports.map((item, idx) => [
+            (page - 1) * perPage + idx + 1,
+            formatWitaDateFull(item.date),
+            item.courierCode || "JF-KURIR",
+            item.courierName || "Kurir",
+            item.routeDisplay,
+            item.packageTypeName,
+            `${item.orderCount} paket`,
+            formatRupiah(item.omset),
+            item.ojolCount > 0
+              ? `${item.ojolCount}x (${formatRupiah(item.ojolAmount)})`
+              : "-",
+            item.jastipCount > 0
+              ? `${item.jastipCount}x (${formatRupiah(item.jastipAmount)})`
+              : "-",
+            item.notes || "-",
+          ]),
+          footerRow:
+            reports.length > 0
+              ? [
+                  "",
+                  "TOTAL HALAMAN INI",
+                  "",
+                  "",
+                  "",
+                  "",
+                  `${pageOrders} paket`,
+                  formatRupiah(pageOmset),
+                  `${pageOjolCount}x (${formatRupiah(pageOjolAmt)})`,
+                  `${pageJastipCount}x (${formatRupiah(pageJastipAmt)})`,
+                  "",
+                ]
+              : undefined,
+        },
+      ],
+    };
+  };
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+      {/* Export Action Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50/60">
+        <div className="text-xs font-bold text-slate-700">
+          Daftar Laporan Operasional ({total} laporan)
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => exportToExcel(buildExportConfig())}
+            className="gap-1.5 border-emerald-300 bg-emerald-50/80 text-emerald-800 hover:bg-emerald-100 text-xs font-bold"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+            <span>Download Excel (.xls)</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => exportToPdf(buildExportConfig())}
+            className="gap-1.5 border-red-300 bg-red-50/80 text-red-800 hover:bg-red-100 text-xs font-bold"
+          >
+            <FileDown className="h-3.5 w-3.5 text-red-700" />
+            <span>Download PDF</span>
+          </Button>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
