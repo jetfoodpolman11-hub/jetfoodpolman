@@ -1,9 +1,12 @@
-const CACHE_NAME = "jetfood-polman-pwa-v1";
+const CACHE_NAME = "jetfood-polman-pwa-v2";
 const PRECACHE_ASSETS = [
   "/manifest.json",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
-  "/icons/apple-touch-icon.png",
+  "/favicon.ico?v=2",
+  "/icons/favicon-32x32.png?v=2",
+  "/icons/favicon-64x64.png?v=2",
+  "/icons/icon-192x192.png?v=2",
+  "/icons/icon-512x512.png?v=2",
+  "/icons/apple-touch-icon.png?v=2",
   "/images/logo.png",
   "/images/logo-white.png"
 ];

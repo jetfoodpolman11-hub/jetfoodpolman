@@ -162,13 +162,13 @@ export function PwaInstallPrompt() {
               </button>
 
               <div className="flex items-center gap-3.5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-md">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white p-0.5 shadow-md">
                   <Image
-                    src="/images/logo.png"
+                    src="/icons/icon-192x192.png"
                     alt="JetFood Polman"
-                    width={52}
-                    height={52}
-                    className="h-full w-full object-contain"
+                    width={56}
+                    height={56}
+                    className="h-full w-full rounded-full object-contain"
                   />
                 </div>
                 <div>
