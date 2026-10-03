@@ -35,19 +35,19 @@ export default async function CourierNewReportPage() {
       </div>
 
       {/* Page Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl bg-[#DC0000] p-5 text-white shadow-[0_6px_18px_rgba(220,0,0,0.2)]">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <FilePlus className="h-5 w-5 text-red-400" />
-            <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
+            <FilePlus className="h-5 w-5 text-white shrink-0" />
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
               Input Laporan Operasional Harian
             </h1>
           </div>
-          <span className="text-xs font-semibold text-red-300">
+          <span className="text-xs font-bold text-white/95 text-right">
             {todayFormatted} (WITA)
           </span>
         </div>
-        <p className="text-xs text-slate-300 mt-1">
+        <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
           Catat rute keberangkatan, tujuan pengantaran, jumlah order, dan omset harian Anda di lapangan.
         </p>
       </div>

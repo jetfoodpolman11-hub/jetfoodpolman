@@ -62,19 +62,19 @@ export default async function CourierHistoryPage({
       </div>
 
       {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl bg-[#DC0000] p-5 text-white shadow-[0_6px_18px_rgba(220,0,0,0.2)]">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-red-400" />
-            <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
+            <History className="h-5 w-5 text-white shrink-0" />
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
               Riwayat Operasional Saya
             </h1>
           </div>
-          <span className="text-xs font-bold text-red-300">
+          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">
             {totalReports} Laporan
           </span>
         </div>
-        <p className="text-xs text-slate-300 mt-1">
+        <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
           Arsip seluruh laporan rute, jumlah order paket, dan omset yang Anda kirimkan.
         </p>
       </div>
@@ -137,7 +137,7 @@ export default async function CourierHistoryPage({
         </div>
         <button
           type="submit"
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
+          className="rounded-lg bg-[#DC0000] px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-colors cursor-pointer"
         >
           Filter
         </button>

@@ -132,15 +132,15 @@ export function AttendanceCard({
   return (
     <Card className="border-slate-200 shadow-sm overflow-hidden">
       {/* Header Accent */}
-      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-red-950 px-5 py-4 text-white">
+      <div className="bg-[#DC0000] px-5 py-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-red-400" />
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <Clock className="h-5 w-5 text-white" />
+            <span className="text-xs font-bold uppercase tracking-wider text-white/90">
               Presensi Mandiri Lapangan
             </span>
           </div>
-          <span className="text-xs font-semibold text-red-300">
+          <span className="text-xs font-semibold text-white/90">
             Zona WITA (UTC+8)
           </span>
         </div>
@@ -334,7 +334,7 @@ export function AttendanceCard({
               type="button"
               onClick={handleClockOut}
               disabled={isPending}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-800 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#DC0000] py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-red-700 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {isPending ? (
                 <>

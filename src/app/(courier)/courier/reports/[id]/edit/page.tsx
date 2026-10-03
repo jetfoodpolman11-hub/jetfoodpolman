@@ -76,14 +76,14 @@ export default async function CourierEditReportPage({
       </div>
 
       {/* Page Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-xs">
+      <div className="rounded-2xl bg-[#DC0000] p-5 text-white shadow-[0_6px_18px_rgba(220,0,0,0.2)]">
         <div className="flex items-center gap-2">
-          <Edit3 className="h-5 w-5 text-red-400" />
-          <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
+          <Edit3 className="h-5 w-5 text-white shrink-0" />
+          <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
             Perbarui Laporan Operasional
           </h1>
         </div>
-        <p className="text-xs text-slate-300 mt-1">
+        <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
           Koreksi rute, jumlah order paket, omset, atau catatan untuk tanggal {report.date}.
         </p>
       </div>

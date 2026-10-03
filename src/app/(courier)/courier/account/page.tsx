@@ -34,11 +34,11 @@ export default async function CourierAccountPage() {
   return (
     <div className="space-y-5 pb-8 font-sans">
       {/* 1. Profile Header Card */}
-      <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-md relative overflow-hidden border border-slate-800">
+      <div className="rounded-3xl bg-[#DC0000] p-6 text-white shadow-[0_8px_24px_rgba(220,0,0,0.22)] relative overflow-hidden border border-red-700/40">
         <div className="flex flex-col items-center text-center space-y-3 relative z-10">
-          {/* Avatar with Red Ring Accent */}
+          {/* Avatar with White Ring Accent */}
           <div className="relative">
-            <div className="h-20 w-20 rounded-full border-2 border-red-600 p-1 flex items-center justify-center bg-slate-900 shadow-md overflow-hidden">
+            <div className="h-20 w-20 rounded-full border-2 border-white p-1 flex items-center justify-center bg-white/15 shadow-md overflow-hidden">
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -47,23 +47,23 @@ export default async function CourierAccountPage() {
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <div className="h-full w-full rounded-full bg-slate-800 flex items-center justify-center text-red-500 font-black text-2xl">
+                <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-[#DC0000] font-black text-2xl">
                   {fullName.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-950" title="Kurir Aktif" />
+            <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-400 border-2 border-[#DC0000]" title="Kurir Aktif" />
           </div>
 
           <div>
             <h1 className="text-xl font-black text-white tracking-tight">
               {fullName}
             </h1>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <span className="rounded-full bg-red-600 px-3 py-0.5 text-xs font-mono font-bold tracking-wider text-white uppercase shadow-xs">
+            <div className="flex items-center justify-center gap-2 mt-1.5">
+              <span className="rounded-full bg-white px-3 py-0.5 text-xs font-mono font-black tracking-wider text-slate-950 uppercase shadow-xs">
                 {courierCode}
               </span>
-              <span className="text-xs text-slate-400 font-semibold">
+              <span className="text-xs text-white/90 font-semibold">
                 Kurir Lapangan
               </span>
             </div>
