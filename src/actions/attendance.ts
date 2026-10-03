@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCourier, requireAdmin, requireAuth } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { readCloudJson, writeCloudJson } from "@/lib/supabase/cloud-json-store";
 import { getWitaDateString, formatWitaDateTime } from "@/lib/date";
 import { validateClockInInput } from "@/lib/validations/attendance";
 
@@ -44,7 +45,6 @@ export interface AttendanceActionResult {
   record?: AttendanceRecord;
 }
 
-// In-memory mock storage for local development preview without live database
 interface MockAttendanceEntry {
   id: string;
   courier_id: string;
@@ -61,22 +61,9 @@ interface MockAttendanceEntry {
   updated_at: string;
 }
 
-// Pre-seeded demo record for yesterday
-let localMockAttendance: MockAttendanceEntry[] = [
-  {
-    id: "att-seed-yesterday",
-    courier_id: "mock-courier-rec-id",
-    courier_name: "Kurir Lapangan Ali",
-    courier_code: "JF-001",
-    date: "2026-10-01",
-    clock_in_time: "2026-10-01T00:05:00.000Z", // 08:05 WITA
-    clock_out_time: "2026-10-01T09:15:00.000Z", // 17:15 WITA
-    clock_in_notes: "Kondisi motor prima, siap rute Polewali Mandar",
-    clock_out_notes: "Selesai 18 pengantaran, paket aman",
-    created_at: "2026-10-01T00:05:00.000Z",
-    updated_at: "2026-10-01T09:15:00.000Z",
-  },
-];
+// Empty initial store (all dummy/demo attendance history removed)
+let localMockAttendance: MockAttendanceEntry[] = [];
+const ATTENDANCE_CLOUD_FILE = "attendance.json";
 
 /**
  * Format ISO timestamp into WITA time string (HH:mm WITA)
@@ -112,21 +99,7 @@ export async function resetMockAttendanceForTesting() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Operation forbidden in production environment.");
   }
-  localMockAttendance = [
-    {
-      id: "att-seed-yesterday",
-      courier_id: "mock-courier-rec-id",
-      courier_name: "Kurir Lapangan Ali",
-      courier_code: "JF-001",
-      date: "2026-10-01",
-      clock_in_time: "2026-10-01T00:05:00.000Z",
-      clock_out_time: "2026-10-01T09:15:00.000Z",
-      clock_in_notes: "Kondisi motor prima, siap rute Polewali Mandar",
-      clock_out_notes: "Selesai 18 pengantaran, paket aman",
-      created_at: "2026-10-01T00:05:00.000Z",
-      updated_at: "2026-10-01T09:15:00.000Z",
-    },
-  ];
+  localMockAttendance = [];
 }
 
 /**
@@ -175,20 +148,67 @@ export async function getTodayAttendanceForCourier(
       clockOutTime: formatTimeWitaSync(existing.clock_out_time),
       clockInNotes: existing.clock_in_notes,
       clockOutNotes: existing.clock_out_notes,
-      clockInLocation: existing.clock_in_location || (existing.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar"),
-      clockOutLocation: existing.clock_out_location || (existing.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
+      clockInLocation:
+        existing.clock_in_location ||
+        (existing.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+          "Polewali Mandar"),
+      clockOutLocation:
+        existing.clock_out_location ||
+        (existing.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
       status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
       statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
     };
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
     .from("attendance")
     .select("clock_in_time, clock_out_time, clock_in_notes, clock_out_notes")
     .eq("courier_id", courierId)
     .eq("date", todayWita)
     .maybeSingle();
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    const existing = cloudList.find(
+      (a) => a.courier_id === courierId && a.date === todayWita
+    );
+    if (!existing) {
+      return {
+        hasClockedIn: false,
+        hasClockedOut: false,
+        clockInTime: null,
+        clockOutTime: null,
+        clockInNotes: null,
+        clockOutNotes: null,
+        clockInLocation: null,
+        clockOutLocation: null,
+        status: "BELUM_ABSEN",
+        statusLabel: "Belum Absen",
+      };
+    }
+    const hasOut = !!existing.clock_out_time;
+    return {
+      hasClockedIn: true,
+      hasClockedOut: hasOut,
+      clockInTime: formatTimeWitaSync(existing.clock_in_time),
+      clockOutTime: formatTimeWitaSync(existing.clock_out_time),
+      clockInNotes: existing.clock_in_notes,
+      clockOutNotes: existing.clock_out_notes,
+      clockInLocation:
+        existing.clock_in_location ||
+        (existing.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+          "Polewali Mandar"),
+      clockOutLocation:
+        existing.clock_out_location ||
+        (existing.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
+      status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
+      statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
+    };
+  }
 
   if (!data) {
     return {
@@ -215,8 +235,11 @@ export async function getTodayAttendanceForCourier(
     clockOutTime: formatTimeWitaSync(data.clock_out_time),
     clockInNotes: data.clock_in_notes,
     clockOutNotes: data.clock_out_notes,
-    clockInLocation: data.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar",
-    clockOutLocation: data.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
+    clockInLocation:
+      data.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+      "Polewali Mandar",
+    clockOutLocation:
+      data.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
     status: hasOut ? "SUDAH_PULANG" : "SUDAH_MASUK",
     statusLabel: hasOut ? "Sudah Absen Pulang" : "Sudah Absen Masuk",
   };
@@ -303,15 +326,60 @@ export async function clockInAction(
   }
 
   // Supabase PostgreSQL Handling
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // 1. Check double check-in
-  const { data: existing } = await supabase
+  const { data: existing, error: checkErr } = await supabase
     .from("attendance")
     .select("id")
     .eq("courier_id", courierId)
     .eq("date", todayWita)
     .maybeSingle();
+
+  if (checkErr && checkErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    const dup = cloudList.find(
+      (a) => a.courier_id === courierId && a.date === todayWita
+    );
+    if (dup) {
+      return {
+        success: false,
+        error: "Anda sudah melakukan absen masuk hari ini. Mencegah absen ganda.",
+      };
+    }
+
+    const newRecord: MockAttendanceEntry = {
+      id: `att-${Date.now()}`,
+      courier_id: courierId,
+      courier_name: session.profile?.fullName,
+      courier_code: session.courier?.courierCode,
+      date: todayWita,
+      clock_in_time: nowIso,
+      clock_out_time: null,
+      clock_in_notes: notes?.trim() || null,
+      clock_out_notes: null,
+      clock_in_location: effectiveLocation,
+      clock_out_location: null,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+
+    cloudList.unshift(newRecord);
+    await writeCloudJson(ATTENDANCE_CLOUD_FILE, cloudList);
+
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/attendance");
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/dashboard");
+
+    return {
+      success: true,
+      message: `Absen masuk berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
+    };
+  }
 
   if (existing) {
     return {
@@ -320,7 +388,9 @@ export async function clockInAction(
     };
   }
 
-  const fullNotes = location ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim() : (notes?.trim() || null);
+  const fullNotes = location
+    ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim()
+    : notes?.trim() || null;
 
   // 2. Insert attendance row
   const { error } = await supabase.from("attendance").insert({
@@ -331,7 +401,10 @@ export async function clockInAction(
   });
 
   if (error) {
-    return { success: false, error: `Gagal mencatat presensi masuk: ${error.message}` };
+    return {
+      success: false,
+      error: `Gagal mencatat presensi masuk: ${error.message}`,
+    };
   }
 
   revalidatePath("/courier/dashboard");
@@ -380,14 +453,16 @@ export async function clockOutAction(
     if (!existing) {
       return {
         success: false,
-        error: "Anda belum melakukan absen masuk hari ini. Silakan absen masuk terlebih dahulu.",
+        error:
+          "Anda belum melakukan absen masuk hari ini. Silakan absen masuk terlebih dahulu.",
       };
     }
 
     if (existing.clock_out_time) {
       return {
         success: false,
-        error: "Anda sudah melakukan absen pulang hari ini. Mencegah absen pulang ganda.",
+        error:
+          "Anda sudah melakukan absen pulang hari ini. Mencegah absen pulang ganda.",
       };
     }
 
@@ -408,7 +483,7 @@ export async function clockOutAction(
   }
 
   // Supabase PostgreSQL Handling
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // 1. Check existing clock-in
   const { data: existing, error: checkError } = await supabase
@@ -418,21 +493,65 @@ export async function clockOutAction(
     .eq("date", todayWita)
     .maybeSingle();
 
+  if (checkError && checkError.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    const cloudRec = cloudList.find(
+      (a) => a.courier_id === courierId && a.date === todayWita
+    );
+    if (!cloudRec) {
+      return {
+        success: false,
+        error:
+          "Anda belum melakukan absen masuk hari ini. Silakan absen masuk terlebih dahulu.",
+      };
+    }
+    if (cloudRec.clock_out_time) {
+      return {
+        success: false,
+        error:
+          "Anda sudah melakukan absen pulang hari ini. Mencegah absen pulang ganda.",
+      };
+    }
+
+    cloudRec.clock_out_time = nowIso;
+    cloudRec.clock_out_notes = notes?.trim() || null;
+    cloudRec.clock_out_location = effectiveLocation;
+    cloudRec.updated_at = nowIso;
+    await writeCloudJson(ATTENDANCE_CLOUD_FILE, cloudList);
+
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/attendance");
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/dashboard");
+
+    return {
+      success: true,
+      message: `Absen pulang berhasil dicatat pada ${formatTimeWitaSync(nowIso)} di ${effectiveLocation}.`,
+    };
+  }
+
   if (checkError || !existing) {
     return {
       success: false,
-      error: "Anda belum melakukan absen masuk hari ini. Silakan absen masuk terlebih dahulu.",
+      error:
+        "Anda belum melakukan absen masuk hari ini. Silakan absen masuk terlebih dahulu.",
     };
   }
 
   if (existing.clock_out_time) {
     return {
       success: false,
-      error: "Anda sudah melakukan absen pulang hari ini. Mencegah absen pulang ganda.",
+      error:
+        "Anda sudah melakukan absen pulang hari ini. Mencegah absen pulang ganda.",
     };
   }
 
-  const fullNotes = location ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim() : (notes?.trim() || null);
+  const fullNotes = location
+    ? `[Lokasi: ${location}] ${notes?.trim() || ""}`.trim()
+    : notes?.trim() || null;
 
   // 2. Update attendance row
   const { error: updateError } = await supabase
@@ -444,7 +563,10 @@ export async function clockOutAction(
     .eq("id", existing.id);
 
   if (updateError) {
-    return { success: false, error: `Gagal mencatat presensi pulang: ${updateError.message}` };
+    return {
+      success: false,
+      error: `Gagal mencatat presensi pulang: ${updateError.message}`,
+    };
   }
 
   revalidatePath("/courier/dashboard");
@@ -461,7 +583,9 @@ export async function clockOutAction(
 /**
  * Fetch attendance history for the logged-in courier only
  */
-export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]> {
+export async function getCourierAttendanceHistory(): Promise<
+  AttendanceRecord[]
+> {
   const session = await requireCourier();
   const courierId = session.courier?.id;
 
@@ -486,21 +610,59 @@ export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]>
         clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
         clockInNotes: a.clock_in_notes,
         clockOutNotes: a.clock_out_notes,
-        clockInLocation: a.clock_in_location || (a.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar"),
-        clockOutLocation: a.clock_out_location || (a.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
+        clockInLocation:
+          a.clock_in_location ||
+          (a.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+            "Polewali Mandar"),
+        clockOutLocation:
+          a.clock_out_location ||
+          (a.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
         status: a.clock_out_time ? "PULANG" : "MASUK",
         createdAt: a.created_at,
       }));
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("attendance")
-    .select("id, courier_id, date, clock_in_time, clock_out_time, clock_in_notes, clock_out_notes, created_at")
+    .select(
+      "id, courier_id, date, clock_in_time, clock_out_time, clock_in_notes, clock_out_notes, created_at"
+    )
     .eq("courier_id", courierId)
     .order("date", { ascending: false })
     .order("clock_in_time", { ascending: false });
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    return cloudList
+      .filter((a) => a.courier_id === courierId)
+      .map((a) => ({
+        id: a.id,
+        courierId: a.courier_id,
+        courierName: session.profile?.fullName,
+        courierCode: session.courier?.courierCode,
+        date: a.date,
+        clockInTime: a.clock_in_time,
+        clockOutTime: a.clock_out_time,
+        clockInTimeFormatted: formatTimeWitaSync(a.clock_in_time) || "—",
+        clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
+        clockInNotes: a.clock_in_notes,
+        clockOutNotes: a.clock_out_notes,
+        clockInLocation:
+          a.clock_in_location ||
+          (a.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+            "Polewali Mandar"),
+        clockOutLocation:
+          a.clock_out_location ||
+          (a.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null),
+        status: a.clock_out_time ? "PULANG" : "MASUK",
+        createdAt: a.created_at,
+      }));
+  }
 
   if (error || !data) {
     console.error("Error fetching courier attendance:", error);
@@ -519,8 +681,11 @@ export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]>
     clockOutTimeFormatted: formatTimeWitaSync(item.clock_out_time),
     clockInNotes: item.clock_in_notes,
     clockOutNotes: item.clock_out_notes,
-    clockInLocation: item.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? "Polewali Mandar",
-    clockOutLocation: item.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
+    clockInLocation:
+      item.clock_in_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ??
+      "Polewali Mandar",
+    clockOutLocation:
+      item.clock_out_notes?.match(/\[Lokasi:\s*(.*?)\]/)?.[1] ?? null,
     status: item.clock_out_time ? "PULANG" : "MASUK",
     createdAt: item.created_at,
   }));
@@ -559,8 +724,8 @@ export async function getAdminAttendanceList(options?: {
     return filtered.map((a) => ({
       id: a.id,
       courierId: a.courier_id,
-      courierName: a.courier_name || "Kurir Lapangan Ali",
-      courierCode: a.courier_code || "JF-001",
+      courierName: a.courier_name || "Kurir",
+      courierCode: a.courier_code || "JF-KURIR",
       date: a.date,
       clockInTime: a.clock_in_time,
       clockOutTime: a.clock_out_time,
@@ -573,7 +738,7 @@ export async function getAdminAttendanceList(options?: {
     }));
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("attendance")
@@ -610,13 +775,51 @@ export async function getAdminAttendanceList(options?: {
 
   const { data, error } = await query;
 
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    let filtered = [...cloudList];
+    if (options?.date) {
+      filtered = filtered.filter((a) => a.date === options.date);
+    }
+    if (options?.startDate) {
+      filtered = filtered.filter((a) => a.date >= options.startDate!);
+    }
+    if (options?.endDate) {
+      filtered = filtered.filter((a) => a.date <= options.endDate!);
+    }
+    if (options?.courierId && options.courierId !== "ALL") {
+      filtered = filtered.filter((a) => a.courier_id === options.courierId);
+    }
+
+    return filtered.map((a) => ({
+      id: a.id,
+      courierId: a.courier_id,
+      courierName: a.courier_name || "Kurir",
+      courierCode: a.courier_code || "JF-KURIR",
+      date: a.date,
+      clockInTime: a.clock_in_time,
+      clockOutTime: a.clock_out_time,
+      clockInTimeFormatted: formatTimeWitaSync(a.clock_in_time) || "—",
+      clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
+      clockInNotes: a.clock_in_notes,
+      clockOutNotes: a.clock_out_notes,
+      status: a.clock_out_time ? "PULANG" : "MASUK",
+      createdAt: a.created_at,
+    }));
+  }
+
   if (error || !data) {
     console.error("Error fetching admin attendance:", error);
     return [];
   }
 
   return data.map((item) => {
-    const courierObj = Array.isArray(item.couriers) ? item.couriers[0] : item.couriers;
+    const courierObj = Array.isArray(item.couriers)
+      ? item.couriers[0]
+      : item.couriers;
     const profileObj = courierObj?.profiles
       ? Array.isArray(courierObj.profiles)
         ? courierObj.profiles[0]
@@ -684,8 +887,8 @@ export async function getAdminAttendancePaginated(options?: {
     const records: AttendanceRecord[] = paged.map((a) => ({
       id: a.id,
       courierId: a.courier_id,
-      courierName: a.courier_name || "Kurir Lapangan Ali",
-      courierCode: a.courier_code || "JF-001",
+      courierName: a.courier_name || "Kurir",
+      courierCode: a.courier_code || "JF-KURIR",
       date: a.date,
       clockInTime: a.clock_in_time,
       clockOutTime: a.clock_out_time,
@@ -700,7 +903,7 @@ export async function getAdminAttendancePaginated(options?: {
     return { records, total, page, perPage, totalPages };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("attendance")
@@ -737,6 +940,42 @@ export async function getAdminAttendancePaginated(options?: {
 
   const { data, count, error } = await query;
 
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    let filtered = [...cloudList];
+    if (options?.date && options.date !== "ALL") {
+      filtered = filtered.filter((a) => a.date === options.date);
+    }
+    if (options?.courierId && options.courierId !== "ALL") {
+      filtered = filtered.filter((a) => a.courier_id === options.courierId);
+    }
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    const paged = filtered.slice(offset, offset + perPage);
+
+    const records: AttendanceRecord[] = paged.map((a) => ({
+      id: a.id,
+      courierId: a.courier_id,
+      courierName: a.courier_name || "Kurir",
+      courierCode: a.courier_code || "JF-KURIR",
+      date: a.date,
+      clockInTime: a.clock_in_time,
+      clockOutTime: a.clock_out_time,
+      clockInTimeFormatted: formatTimeWitaSync(a.clock_in_time) || "—",
+      clockOutTimeFormatted: formatTimeWitaSync(a.clock_out_time),
+      clockInNotes: a.clock_in_notes,
+      clockOutNotes: a.clock_out_notes,
+      status: a.clock_out_time ? "PULANG" : "MASUK",
+      createdAt: a.created_at,
+    }));
+
+    return { records, total, page, perPage, totalPages };
+  }
+
   if (error || !data) {
     console.error("Error fetching paginated admin attendance:", error);
     return { records: [], total: 0, page, perPage, totalPages: 1 };
@@ -746,7 +985,9 @@ export async function getAdminAttendancePaginated(options?: {
   const totalPages = Math.ceil(total / perPage) || 1;
 
   const records: AttendanceRecord[] = data.map((item) => {
-    const courierObj = Array.isArray(item.couriers) ? item.couriers[0] : item.couriers;
+    const courierObj = Array.isArray(item.couriers)
+      ? item.couriers[0]
+      : item.couriers;
     const profileObj = courierObj?.profiles
       ? Array.isArray(courierObj.profiles)
         ? courierObj.profiles[0]
@@ -787,7 +1028,10 @@ export async function adminCorrectAttendanceAction(
   const session = await requireAdmin();
 
   if (!data.reason || !data.reason.trim()) {
-    return { success: false, error: "Alasan koreksi presensi wajib dicatat untuk audit trail." };
+    return {
+      success: false,
+      error: "Alasan koreksi presensi wajib dicatat untuk audit trail.",
+    };
   }
 
   const adminEmail = session.user.email;
@@ -814,17 +1058,46 @@ export async function adminCorrectAttendanceAction(
     revalidatePath("/courier/attendance");
     revalidatePath("/courier/dashboard");
 
-    return { success: true, message: "Koreksi data presensi berhasil disimpan." };
+    return {
+      success: true,
+      message: "Koreksi data presensi berhasil disimpan.",
+    };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Fetch current record
-  const { data: current } = await supabase
+  const { data: current, error: fetchErr } = await supabase
     .from("attendance")
     .select("clock_out_notes")
     .eq("id", attendanceId)
     .single();
+
+  if (fetchErr && fetchErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    const record = cloudList.find((a) => a.id === attendanceId);
+    if (!record) {
+      return { success: false, error: "Data presensi tidak ditemukan." };
+    }
+    if (data.clockInTime) record.clock_in_time = data.clockInTime;
+    if (data.clockOutTime) record.clock_out_time = data.clockOutTime;
+    record.clock_out_notes = record.clock_out_notes
+      ? `${record.clock_out_notes}\n${auditNote}`
+      : auditNote;
+    await writeCloudJson(ATTENDANCE_CLOUD_FILE, cloudList);
+
+    revalidatePath("/admin/attendance");
+    revalidatePath("/courier/attendance");
+    revalidatePath("/courier/dashboard");
+
+    return {
+      success: true,
+      message: "Koreksi data presensi berhasil disimpan.",
+    };
+  }
 
   const newNotes = current?.clock_out_notes
     ? `${current.clock_out_notes}\n${auditNote}`
@@ -847,7 +1120,10 @@ export async function adminCorrectAttendanceAction(
     .eq("id", attendanceId);
 
   if (error) {
-    return { success: false, error: `Gagal memperbarui presensi: ${error.message}` };
+    return {
+      success: false,
+      error: `Gagal memperbarui presensi: ${error.message}`,
+    };
   }
 
   revalidatePath("/admin/attendance");

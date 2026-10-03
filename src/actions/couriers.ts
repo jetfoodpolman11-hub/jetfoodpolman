@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCreateCourierInput } from "@/lib/validations/courier";
 
@@ -26,50 +25,127 @@ export interface ActionResult {
   message?: string;
 }
 
-const MOCK_COURIERS: CourierWithProfile[] = [
-  {
-    id: "mock-courier-rec-id",
-    userId: "mock-courier-user-id",
-    courierCode: "JF-001",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 1234 XX",
-    status: "ACTIVE",
-    fullName: "Kurir Lapangan Ali",
-    email: "kurir@jetfood.id",
-    phone: "081234567890",
-    isActive: true,
-    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-  },
-  {
-    id: "mock-courier-rec-2",
-    userId: "mock-courier-user-2",
-    courierCode: "JF-002",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 5678 YY",
-    status: "ACTIVE",
-    fullName: "Kurir Lapangan Budi",
-    email: "budi@jetfood.id",
-    phone: "081234567891",
-    isActive: true,
-    createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
-  },
-  {
-    id: "mock-courier-rec-3",
-    userId: "mock-courier-user-3",
-    courierCode: "JF-003",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 9012 ZZ",
-    status: "ACTIVE",
-    fullName: "Kurir Lapangan Citra",
-    email: "citra@jetfood.id",
-    phone: "081234567892",
-    isActive: true,
-    createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
-  },
-];
+// Empty initial store (all dummy/demo courier accounts removed)
+const MOCK_COURIERS: CourierWithProfile[] = [];
 
 /**
- * Fetch all couriers with their associated profiles
+ * Internal helper: Resolve all couriers from Supabase (PostgreSQL tables + Supabase Auth metadata)
+ */
+export async function fetchAllCouriersInternal(): Promise<CourierWithProfile[]> {
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    return [...MOCK_COURIERS];
+  }
+
+  try {
+    const adminClient = createAdminClient();
+
+    // 1. Try querying PostgreSQL couriers + profiles tables first
+    const { data, error } = await adminClient
+      .from("couriers")
+      .select(`
+        id,
+        user_id,
+        courier_code,
+        vehicle_type,
+        plate_number,
+        status,
+        created_at,
+        profiles:user_id (
+          id,
+          full_name,
+          email,
+          phone,
+          is_active
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      const formatted: CourierWithProfile[] = [];
+      for (const item of data) {
+        const profile = Array.isArray(item.profiles)
+          ? item.profiles[0]
+          : item.profiles;
+        if (profile) {
+          formatted.push({
+            id: item.id,
+            userId: item.user_id,
+            courierCode: item.courier_code,
+            vehicleType: item.vehicle_type,
+            plateNumber: item.plate_number,
+            status: item.status,
+            fullName: profile.full_name,
+            email: profile.email,
+            phone: profile.phone,
+            isActive: profile.is_active,
+            createdAt: item.created_at,
+          });
+        }
+      }
+      return formatted;
+    }
+
+    // 2. Also read couriers provisioned in Supabase Auth (auth.users user_metadata)
+    const { data: usersList, error: usersErr } =
+      await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+
+    if (usersErr || !usersList?.users) {
+      return [];
+    }
+
+    const authCouriers: CourierWithProfile[] = [];
+    for (const u of usersList.users) {
+      const meta = (u.user_metadata || {}) as Record<string, unknown>;
+      if (meta.role === "KURIR" && typeof meta.courier_code === "string") {
+        const status: "ACTIVE" | "INACTIVE" =
+          meta.status === "INACTIVE" ? "INACTIVE" : "ACTIVE";
+        const isActive = meta.is_active !== false && status === "ACTIVE";
+        authCouriers.push({
+          id: (typeof meta.courier_id === "string" && meta.courier_id) || u.id,
+          userId: u.id,
+          courierCode: meta.courier_code.toUpperCase(),
+          vehicleType:
+            typeof meta.vehicle_type === "string" ? meta.vehicle_type : "Sepeda Motor",
+          plateNumber:
+            typeof meta.plate_number === "string" ? meta.plate_number : null,
+          status,
+          fullName:
+            (typeof meta.full_name === "string" && meta.full_name) ||
+            u.email ||
+            "Kurir",
+          email: u.email || "",
+          phone: typeof meta.phone === "string" ? meta.phone : null,
+          isActive,
+          createdAt: u.created_at || new Date().toISOString(),
+        });
+      }
+    }
+
+    authCouriers.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return authCouriers;
+  } catch (err) {
+    console.error("Error fetching couriers from Supabase:", err);
+    return [];
+  }
+}
+
+/**
+ * Internal helper: Find a single courier by courierCode across Supabase
+ */
+export async function findCourierByCodeInternal(
+  courierCode: string
+): Promise<CourierWithProfile | null> {
+  const cleanCode = courierCode.trim().toUpperCase();
+  const all = await fetchAllCouriersInternal();
+  return all.find((c) => c.courierCode.toUpperCase() === cleanCode) || null;
+}
+
+/**
+ * Fetch all couriers with their associated profiles (Admin only)
  */
 export async function getCouriers(options?: {
   search?: string;
@@ -77,94 +153,26 @@ export async function getCouriers(options?: {
 }): Promise<CourierWithProfile[]> {
   await requireAdmin();
 
-  const isPlaceholderEnv =
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+  let list = await fetchAllCouriersInternal();
 
-  if (isPlaceholderEnv) {
-    let list = [...MOCK_COURIERS];
-    if (options?.status && (options.status === "ACTIVE" || options.status === "INACTIVE")) {
-      list = list.filter((c) => c.status === options.status);
-    }
-    if (options?.search) {
-      const q = options.search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.fullName.toLowerCase().includes(q) ||
-          c.courierCode.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q)
-      );
-    }
-    return list;
+  if (
+    options?.status &&
+    (options.status === "ACTIVE" || options.status === "INACTIVE")
+  ) {
+    list = list.filter((c) => c.status === options.status);
   }
 
-  const supabase = await createClient();
-
-  let query = supabase
-    .from("couriers")
-    .select(`
-      id,
-      user_id,
-      courier_code,
-      vehicle_type,
-      plate_number,
-      status,
-      created_at,
-      profiles:user_id (
-        id,
-        full_name,
-        email,
-        phone,
-        is_active
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  if (options?.status && (options.status === "ACTIVE" || options.status === "INACTIVE")) {
-    query = query.eq("status", options.status);
+  if (options?.search) {
+    const q = options.search.toLowerCase();
+    list = list.filter(
+      (c) =>
+        c.fullName.toLowerCase().includes(q) ||
+        c.courierCode.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q)
+    );
   }
 
-  const { data, error } = await query;
-
-  if (error || !data) {
-    console.error("Error fetching couriers:", error);
-    return [];
-  }
-
-  const formatted: CourierWithProfile[] = [];
-
-  for (const item of data) {
-    // profiles is joined as single object or array depending on PostgREST response
-    const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
-    if (profile) {
-      // If search filter is active, filter by name, code, or email
-      if (options?.search) {
-        const q = options.search.toLowerCase();
-        const matchesName = profile.full_name?.toLowerCase().includes(q);
-        const matchesCode = item.courier_code?.toLowerCase().includes(q);
-        const matchesEmail = profile.email?.toLowerCase().includes(q);
-        if (!matchesName && !matchesCode && !matchesEmail) {
-          continue;
-        }
-      }
-
-      formatted.push({
-        id: item.id,
-        userId: item.user_id,
-        courierCode: item.courier_code,
-        vehicleType: item.vehicle_type,
-        plateNumber: item.plate_number,
-        status: item.status,
-        fullName: profile.full_name,
-        email: profile.email,
-        phone: profile.phone,
-        isActive: profile.is_active,
-        createdAt: item.created_at,
-      });
-    }
-  }
-
-  return formatted;
+  return list;
 }
 
 /**
@@ -178,9 +186,12 @@ export async function createCourierAction(
   const fullName = (formData.get("fullName") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
   const phone = (formData.get("phone") as string)?.trim() || null;
-  const courierCode = (formData.get("courierCode") as string)?.trim().toUpperCase();
+  const courierCode = (formData.get("courierCode") as string)
+    ?.trim()
+    .toUpperCase();
   const vehicleType = (formData.get("vehicleType") as string)?.trim() || null;
-  const plateNumber = (formData.get("plateNumber") as string)?.trim().toUpperCase() || null;
+  const plateNumber =
+    (formData.get("plateNumber") as string)?.trim().toUpperCase() || null;
   const password = formData.get("password") as string;
 
   // 1. Validation
@@ -199,34 +210,36 @@ export async function createCourierAction(
     return { success: false, error: firstError || "Data tidak valid" };
   }
 
+  // 2. Check duplicates against existing couriers
+  const existingCouriers = await fetchAllCouriersInternal();
+  const dupEmail = existingCouriers.find(
+    (c) => c.email.toLowerCase() === email.toLowerCase()
+  );
+  if (dupEmail) {
+    return {
+      success: false,
+      error: `Email ${email} sudah terdaftar di sistem.`,
+    };
+  }
+
+  const dupCode = existingCouriers.find(
+    (c) => c.courierCode.toUpperCase() === courierCode.toUpperCase()
+  );
+  if (dupCode) {
+    return {
+      success: false,
+      error: `Kode kurir ${courierCode} sudah digunakan. Gunakan kode lain.`,
+    };
+  }
+
   const isPlaceholderEnv =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
   if (isPlaceholderEnv) {
-    const dupEmail = MOCK_COURIERS.find(
-      (c) => c.email.toLowerCase() === email.toLowerCase()
-    );
-    if (dupEmail) {
-      return {
-        success: false,
-        error: `Email ${email} sudah terdaftar di sistem.`,
-      };
-    }
-
-    const dupCode = MOCK_COURIERS.find(
-      (c) => c.courierCode.toUpperCase() === courierCode.toUpperCase()
-    );
-    if (dupCode) {
-      return {
-        success: false,
-        error: `Kode kurir ${courierCode} sudah digunakan. Gunakan kode lain.`,
-      };
-    }
-
     const newCourier: CourierWithProfile = {
-      id: `mock-courier-rec-${Date.now()}`,
-      userId: `mock-courier-user-${Date.now()}`,
+      id: `courier-rec-${Date.now()}`,
+      userId: `courier-user-${Date.now()}`,
       courierCode,
       vehicleType: vehicleType || "Sepeda Motor",
       plateNumber,
@@ -249,58 +262,39 @@ export async function createCourierAction(
     };
   }
 
-  const supabase = await createClient();
-
-  // 2. Check duplicate email in profiles
-  const { data: existingEmail } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (existingEmail) {
-    return {
-      success: false,
-      error: `Email ${email} sudah terdaftar di sistem.`,
-    };
-  }
-
-  // 3. Check duplicate courier_code in couriers
-  const { data: existingCode } = await supabase
-    .from("couriers")
-    .select("id")
-    .eq("courier_code", courierCode)
-    .maybeSingle();
-
-  if (existingCode) {
-    return {
-      success: false,
-      error: `Kode kurir ${courierCode} sudah digunakan. Gunakan kode lain.`,
-    };
-  }
-
   try {
     const adminClient = createAdminClient();
 
-    // 4. Create user in Supabase Auth via admin API
+    // 3. Create user in Supabase Auth via Admin API with complete courier metadata
     const { data: authUser, error: authCreateError } =
       await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
+        user_metadata: {
+          role: "KURIR",
+          full_name: fullName,
+          phone,
+          courier_code: courierCode,
+          vehicle_type: vehicleType || "Sepeda Motor",
+          plate_number: plateNumber,
+          status: "ACTIVE",
+          is_active: true,
+        },
       });
 
     if (authCreateError || !authUser.user) {
       return {
         success: false,
-        error: authCreateError?.message || "Gagal membuat akun autentikasi kurir.",
+        error:
+          authCreateError?.message || "Gagal membuat akun autentikasi kurir.",
       };
     }
 
     const newUserId = authUser.user.id;
 
-    // 5. Insert profile into profiles table (Role is strictly 'KURIR')
-    const { error: profileError } = await adminClient.from("profiles").insert({
+    // 4. Also insert into PostgreSQL profiles & couriers tables if schema is initialized
+    const { error: profileError } = await adminClient.from("profiles").upsert({
       id: newUserId,
       role: "KURIR",
       full_name: fullName,
@@ -309,32 +303,34 @@ export async function createCourierAction(
       is_active: true,
     });
 
-    if (profileError) {
-      // Rollback auth user if profile creation fails
-      await adminClient.auth.admin.deleteUser(newUserId);
-      return {
-        success: false,
-        error: `Gagal menyimpan profil kurir: ${profileError.message}`,
-      };
-    }
+    if (!profileError) {
+      const { data: insertedCourier } = await adminClient
+        .from("couriers")
+        .insert({
+          user_id: newUserId,
+          courier_code: courierCode,
+          vehicle_type: vehicleType || "Sepeda Motor",
+          plate_number: plateNumber,
+          status: "ACTIVE",
+        })
+        .select("id")
+        .maybeSingle();
 
-    // 6. Insert courier metadata into couriers table
-    const { error: courierError } = await adminClient.from("couriers").insert({
-      user_id: newUserId,
-      courier_code: courierCode,
-      vehicle_type: vehicleType,
-      plate_number: plateNumber,
-      status: "ACTIVE",
-    });
-
-    if (courierError) {
-      // Clean up on failure
-      await adminClient.from("profiles").delete().eq("id", newUserId);
-      await adminClient.auth.admin.deleteUser(newUserId);
-      return {
-        success: false,
-        error: `Gagal menyimpan data kurir: ${courierError.message}`,
-      };
+      if (insertedCourier?.id) {
+        await adminClient.auth.admin.updateUserById(newUserId, {
+          user_metadata: {
+            role: "KURIR",
+            courier_id: insertedCourier.id,
+            full_name: fullName,
+            phone,
+            courier_code: courierCode,
+            vehicle_type: vehicleType || "Sepeda Motor",
+            plate_number: plateNumber,
+            status: "ACTIVE",
+            is_active: true,
+          },
+        });
+      }
     }
 
     revalidatePath("/admin/couriers");
@@ -343,13 +339,16 @@ export async function createCourierAction(
 
     return {
       success: true,
-      message: `Kurir ${fullName} (${courierCode}) berhasil didaftarkan.`,
+      message: `Kurir ${fullName} (${courierCode}) berhasil didaftarkan ke Supabase.`,
     };
   } catch (err: unknown) {
     console.error("Exception during courier creation:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Terjadi kesalahan sistem saat membuat kurir.",
+      error:
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan sistem saat membuat kurir.",
     };
   }
 }
@@ -366,15 +365,32 @@ export async function updateCourierAction(
 
   const fullName = (formData.get("fullName") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim() || null;
-  const courierCode = (formData.get("courierCode") as string)?.trim().toUpperCase();
+  const courierCode = (formData.get("courierCode") as string)
+    ?.trim()
+    .toUpperCase();
   const vehicleType = (formData.get("vehicleType") as string)?.trim() || null;
-  const plateNumber = (formData.get("plateNumber") as string)?.trim().toUpperCase() || null;
+  const plateNumber =
+    (formData.get("plateNumber") as string)?.trim().toUpperCase() || null;
 
   if (!fullName) {
     return { success: false, error: "Nama lengkap wajib diisi" };
   }
   if (!courierCode) {
     return { success: false, error: "Kode kurir wajib diisi" };
+  }
+
+  const allCouriers = await fetchAllCouriersInternal();
+  const conflict = allCouriers.find(
+    (c) =>
+      c.id !== courierId &&
+      c.userId !== userId &&
+      c.courierCode.toUpperCase() === courierCode
+  );
+  if (conflict) {
+    return {
+      success: false,
+      error: `Kode kurir ${courierCode} sudah digunakan oleh kurir lain.`,
+    };
   }
 
   const isPlaceholderEnv =
@@ -385,16 +401,6 @@ export async function updateCourierAction(
     const target = MOCK_COURIERS.find((c) => c.id === courierId);
     if (!target) {
       return { success: false, error: "Data kurir tidak ditemukan." };
-    }
-
-    const conflict = MOCK_COURIERS.find(
-      (c) => c.id !== courierId && c.courierCode.toUpperCase() === courierCode
-    );
-    if (conflict) {
-      return {
-        success: false,
-        error: `Kode kurir ${courierCode} sudah digunakan oleh kurir lain.`,
-      };
     }
 
     target.fullName = fullName;
@@ -410,25 +416,28 @@ export async function updateCourierAction(
     return { success: true, message: "Data kurir berhasil diperbarui." };
   }
 
-  const supabase = await createClient();
+  const adminClient = createAdminClient();
+  const existingTarget = allCouriers.find(
+    (c) => c.id === courierId || c.userId === userId
+  );
 
-  // Check unique courier_code conflict with other couriers
-  const { data: conflictCode } = await supabase
-    .from("couriers")
-    .select("id")
-    .eq("courier_code", courierCode)
-    .neq("id", courierId)
-    .maybeSingle();
+  // 1. Update Supabase Auth metadata
+  await adminClient.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      role: "KURIR",
+      courier_id: courierId,
+      full_name: fullName,
+      phone,
+      courier_code: courierCode,
+      vehicle_type: vehicleType || "Sepeda Motor",
+      plate_number: plateNumber,
+      status: existingTarget?.status || "ACTIVE",
+      is_active: existingTarget?.isActive ?? true,
+    },
+  });
 
-  if (conflictCode) {
-    return {
-      success: false,
-      error: `Kode kurir ${courierCode} sudah digunakan oleh kurir lain.`,
-    };
-  }
-
-  // Update profiles
-  const { error: profileError } = await supabase
+  // 2. Update PostgreSQL tables if present
+  await adminClient
     .from("profiles")
     .update({
       full_name: fullName,
@@ -436,12 +445,7 @@ export async function updateCourierAction(
     })
     .eq("id", userId);
 
-  if (profileError) {
-    return { success: false, error: profileError.message };
-  }
-
-  // Update couriers
-  const { error: courierError } = await supabase
+  await adminClient
     .from("couriers")
     .update({
       courier_code: courierCode,
@@ -449,10 +453,6 @@ export async function updateCourierAction(
       plate_number: plateNumber,
     })
     .eq("id", courierId);
-
-  if (courierError) {
-    return { success: false, error: courierError.message };
-  }
 
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
@@ -495,27 +495,39 @@ export async function toggleCourierStatusAction(
     };
   }
 
-  const supabase = await createClient();
+  const adminClient = createAdminClient();
+  const allCouriers = await fetchAllCouriersInternal();
+  const existingTarget = allCouriers.find(
+    (c) => c.id === courierId || c.userId === userId
+  );
 
-  // 1. Update couriers table
-  const { error: courierErr } = await supabase
+  // 1. Update Supabase Auth metadata
+  if (existingTarget) {
+    await adminClient.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        role: "KURIR",
+        courier_id: existingTarget.id,
+        full_name: existingTarget.fullName,
+        phone: existingTarget.phone,
+        courier_code: existingTarget.courierCode,
+        vehicle_type: existingTarget.vehicleType,
+        plate_number: existingTarget.plateNumber,
+        status: targetStatus,
+        is_active: isTargetActive,
+      },
+    });
+  }
+
+  // 2. Update PostgreSQL tables if present
+  await adminClient
     .from("couriers")
     .update({ status: targetStatus })
     .eq("id", courierId);
 
-  if (courierErr) {
-    return { success: false, error: courierErr.message };
-  }
-
-  // 2. Update profiles table
-  const { error: profileErr } = await supabase
+  await adminClient
     .from("profiles")
     .update({ is_active: isTargetActive })
     .eq("id", userId);
-
-  if (profileErr) {
-    return { success: false, error: profileErr.message };
-  }
 
   revalidatePath("/admin/couriers");
   revalidatePath("/admin/dashboard");
@@ -576,7 +588,10 @@ export async function resetCourierPasswordAction(
     console.error("Exception resetting courier password:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Terjadi kesalahan saat mereset kata sandi.",
+      error:
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat mereset kata sandi.",
     };
   }
 }

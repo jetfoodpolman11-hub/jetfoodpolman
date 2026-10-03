@@ -187,35 +187,6 @@ export function CourierLoginScreen({ redirectTo }: CourierLoginScreenProps) {
               </button>
             </div>
           </form>
-
-          {/* Quick Demo Credentials Bar for Easy Testing */}
-          <div className="mt-5 pt-3 border-t border-slate-300/60 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block mb-1.5">
-              Akses Cepat Pengujian:
-            </span>
-            <div className="flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCourierId("JF-001");
-                  handleSubmitCode("JF-001");
-                }}
-                className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white text-slate-800 text-[11px] font-bold shadow-2xs border border-slate-200 transition-colors cursor-pointer"
-              >
-                ⚡ Kurir Ali (JF-001)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCourierId("JF-002");
-                  handleSubmitCode("JF-002");
-                }}
-                className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white text-slate-800 text-[11px] font-bold shadow-2xs border border-slate-200 transition-colors cursor-pointer"
-              >
-                ⚡ Kurir Budi (JF-002)
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

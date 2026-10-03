@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireAuth } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { readCloudJson, writeCloudJson } from "@/lib/supabase/cloud-json-store";
 import { ROLES } from "@/lib/constants";
 
 export interface PackageTypeItem {
@@ -20,12 +21,49 @@ export interface ActionResult {
   message?: string;
 }
 
+const PACKAGE_TYPES_CLOUD_FILE = "package_types.json";
+
 const fallbackPackageTypes: PackageTypeItem[] = [
-  { id: "pkg-reguler-id", name: "Reguler", description: "Pengiriman standar Polewali Mandar", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
-  { id: "pkg-express-id", name: "Express", description: "Pengiriman prioritas same-day", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
-  { id: "pkg-dokumen-id", name: "Dokumen", description: "Pengiriman surat & arsip penting", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
-  { id: "pkg-cargo-id", name: "Cargo", description: "Pengiriman barang berat / volume besar", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
-  { id: "pkg-kuliner-id", name: "Makanan & Minuman", description: "Pengantaran kuliner dan konsumsi", isActive: true, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" },
+  {
+    id: "pkg-reguler-id",
+    name: "Reguler",
+    description: "Pengiriman standar Polewali Mandar",
+    isActive: true,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+  },
+  {
+    id: "pkg-express-id",
+    name: "Express",
+    description: "Pengiriman prioritas same-day",
+    isActive: true,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+  },
+  {
+    id: "pkg-dokumen-id",
+    name: "Dokumen",
+    description: "Pengiriman surat & arsip penting",
+    isActive: true,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+  },
+  {
+    id: "pkg-cargo-id",
+    name: "Cargo",
+    description: "Pengiriman barang berat / volume besar",
+    isActive: true,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+  },
+  {
+    id: "pkg-kuliner-id",
+    name: "Makanan & Minuman",
+    description: "Pengantaran kuliner dan konsumsi",
+    isActive: true,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+  },
 ];
 
 /**
@@ -49,7 +87,7 @@ export async function getPackageTypes(options?: {
       : fallbackPackageTypes;
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("package_types")
@@ -61,6 +99,14 @@ export async function getPackageTypes(options?: {
   }
 
   const { data, error } = await query;
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<PackageTypeItem[]>(
+      PACKAGE_TYPES_CLOUD_FILE,
+      fallbackPackageTypes
+    );
+    return enforceActiveOnly ? cloudList.filter((p) => p.isActive) : cloudList;
+  }
 
   if (error || !data || data.length === 0) {
     if (error) console.error("Error fetching package types:", error);
@@ -127,14 +173,45 @@ export async function createPackageTypeAction(
     };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  // Check duplicate name
-  const { data: existing } = await supabase
+  const { data: existing, error: checkErr } = await supabase
     .from("package_types")
     .select("id")
     .ilike("name", name)
     .maybeSingle();
+
+  if (checkErr && checkErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<PackageTypeItem[]>(
+      PACKAGE_TYPES_CLOUD_FILE,
+      fallbackPackageTypes
+    );
+    const dup = cloudList.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (dup) {
+      return {
+        success: false,
+        error: `Jenis paket "${name}" sudah ada di sistem.`,
+      };
+    }
+    const now = new Date().toISOString();
+    cloudList.push({
+      id: `pkg-${Date.now()}`,
+      name,
+      description,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeCloudJson(PACKAGE_TYPES_CLOUD_FILE, cloudList);
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return {
+      success: true,
+      message: `Jenis paket "${name}" berhasil ditambahkan.`,
+    };
+  }
 
   if (existing) {
     return {
@@ -206,15 +283,41 @@ export async function updatePackageTypeAction(
     return { success: true, message: "Jenis paket berhasil diperbarui." };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  // Check duplicate name conflict
-  const { data: conflict } = await supabase
+  const { data: conflict, error: checkErr } = await supabase
     .from("package_types")
     .select("id")
     .ilike("name", name)
     .neq("id", id)
     .maybeSingle();
+
+  if (checkErr && checkErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<PackageTypeItem[]>(
+      PACKAGE_TYPES_CLOUD_FILE,
+      fallbackPackageTypes
+    );
+    const target = cloudList.find((p) => p.id === id);
+    if (!target) {
+      return { success: false, error: "Jenis paket tidak ditemukan." };
+    }
+    const dup = cloudList.find(
+      (p) => p.id !== id && p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (dup) {
+      return {
+        success: false,
+        error: `Nama jenis paket "${name}" sudah digunakan paket lain.`,
+      };
+    }
+    target.name = name;
+    target.description = description;
+    target.updatedAt = new Date().toISOString();
+    await writeCloudJson(PACKAGE_TYPES_CLOUD_FILE, cloudList);
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return { success: true, message: "Jenis paket berhasil diperbarui." };
+  }
 
   if (conflict) {
     return {
@@ -268,12 +371,32 @@ export async function togglePackageTypeStatusAction(
     };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("package_types")
     .update({ is_active: newStatus })
     .eq("id", id);
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<PackageTypeItem[]>(
+      PACKAGE_TYPES_CLOUD_FILE,
+      fallbackPackageTypes
+    );
+    const target = cloudList.find((p) => p.id === id);
+    if (!target) {
+      return { success: false, error: "Jenis paket tidak ditemukan." };
+    }
+    target.isActive = newStatus;
+    target.updatedAt = new Date().toISOString();
+    await writeCloudJson(PACKAGE_TYPES_CLOUD_FILE, cloudList);
+    revalidatePath("/admin/master-data");
+    revalidatePath("/courier/reports/new");
+    return {
+      success: true,
+      message: `Status paket berhasil diubah menjadi ${newStatus ? "Aktif" : "Nonaktif"}.`,
+    };
+  }
 
   if (error) {
     return { success: false, error: error.message };

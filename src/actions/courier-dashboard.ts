@@ -1,9 +1,12 @@
 "use server";
 
 import { requireCourier } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
-import { getWitaDateString, formatWitaDateFull, formatWitaDateTime } from "@/lib/date";
-import { getTodayAttendanceForCourier, type TodayAttendanceState } from "@/actions/attendance";
+import { getWitaDateString, formatWitaDateFull } from "@/lib/date";
+import {
+  getTodayAttendanceForCourier,
+  type TodayAttendanceState,
+} from "@/actions/attendance";
+import { getCourierDailyReports } from "@/actions/daily-reports";
 
 export type { TodayAttendanceState };
 
@@ -37,7 +40,7 @@ export interface CourierDashboardData {
 }
 
 /**
- * Server Action: Fetch dedicated operational dashboard data for logged-in courier
+ * Server Action: Fetch dedicated operational dashboard data for logged-in courier from live Supabase data
  */
 export async function getCourierDashboardData(): Promise<CourierDashboardData> {
   const session = await requireCourier();
@@ -46,7 +49,7 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
 
   const courierName = session.profile?.fullName || "Kurir Lapangan";
   const courierCode = session.courier?.courierCode || "JF-KURIR";
-  const vehicleType = session.courier?.vehicleType || "Motor";
+  const vehicleType = session.courier?.vehicleType || "Sepeda Motor";
   const plateNumber = session.courier?.plateNumber || null;
   const courierId = session.courier?.id;
 
@@ -63,105 +66,10 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
         statusLabel: "Belum Absen",
       };
 
-  const isPlaceholderEnv =
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
-
-  // Fallback / Initial State for development mode without database rows
-  if (isPlaceholderEnv || !courierId) {
-    const { getCourierDailyReports } = await import("@/actions/daily-reports");
-    const reports = await getCourierDailyReports();
-    const todayReports = reports.filter((r) => r.date === todayWita);
-    const totalOrders = todayReports.reduce((sum, r) => sum + r.orderCount, 0);
-    const totalOmset = todayReports.reduce((sum, r) => sum + r.omset, 0);
-
-    return {
-      courierName,
-      courierCode,
-      vehicleType,
-      plateNumber,
-      todayDateFormatted: todayFormatted,
-      attendance: attendanceState,
-      recentReports: reports.slice(0, 5).map((r) => ({
-        id: r.id,
-        date: r.date,
-        originDisplay: `${r.origin.villageName}, ${r.origin.districtName}`,
-        destDisplay: `${r.destination.villageName}, ${r.destination.districtName}`,
-        routeDisplay: r.routeDisplay,
-        packageName: r.packageTypeName,
-        orderCount: r.orderCount,
-        omset: r.omset,
-        ojolCount: r.ojolCount,
-        jastipCount: r.jastipCount,
-        createdAtFormatted: r.createdAtFormatted,
-      })),
-      todayStats: {
-        totalOrders,
-        totalOmset,
-        reportCount: todayReports.length,
-      },
-    };
-  }
-
-  const supabase = await createClient();
-
-  // Fetch Recent Reports submitted by THIS courier only (RLS enforced)
-  const { data: reportsData } = await supabase
-    .from("daily_reports")
-    .select(`
-      id,
-      date,
-      origin_village_name,
-      origin_district_name,
-      dest_village_name,
-      dest_district_name,
-      order_count,
-      omset,
-      ojol_count,
-      jastip_count,
-      created_at,
-      package_types:package_type_id ( name )
-    `)
-    .eq("courier_id", courierId)
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const formattedReports: RecentReportItem[] = (reportsData || []).map((r) => {
-    const pkg = Array.isArray(r.package_types) ? r.package_types[0] : r.package_types;
-    const origin = `${r.origin_village_name}, ${r.origin_district_name}`;
-    const dest = `${r.dest_village_name}, ${r.dest_district_name}`;
-
-    return {
-      id: r.id,
-      date: r.date,
-      originDisplay: origin,
-      destDisplay: dest,
-      routeDisplay: `${origin} → ${dest}`,
-      packageName: pkg?.name || "Reguler",
-      orderCount: r.order_count || 0,
-      omset: Number(r.omset) || 0,
-      ojolCount: r.ojol_count || 0,
-      jastipCount: r.jastip_count || 0,
-      createdAtFormatted: formatWitaDateTime(new Date(r.created_at)),
-    };
-  });
-
-  // 3. Compute Today's Operational Metrics for this courier
-  const { data: todayReports } = await supabase
-    .from("daily_reports")
-    .select("order_count, omset")
-    .eq("courier_id", courierId)
-    .eq("date", todayWita);
-
-  let totalOrders = 0;
-  let totalOmset = 0;
-  if (todayReports) {
-    for (const report of todayReports) {
-      totalOrders += report.order_count || 0;
-      totalOmset += Number(report.omset) || 0;
-    }
-  }
+  const reports = await getCourierDailyReports();
+  const todayReports = reports.filter((r) => r.date === todayWita);
+  const totalOrders = todayReports.reduce((sum, r) => sum + r.orderCount, 0);
+  const totalOmset = todayReports.reduce((sum, r) => sum + r.omset, 0);
 
   return {
     courierName,
@@ -170,11 +78,23 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
     plateNumber,
     todayDateFormatted: todayFormatted,
     attendance: attendanceState,
-    recentReports: formattedReports,
+    recentReports: reports.slice(0, 5).map((r) => ({
+      id: r.id,
+      date: r.date,
+      originDisplay: `${r.origin.villageName}, ${r.origin.districtName}`,
+      destDisplay: `${r.destination.villageName}, ${r.destination.districtName}`,
+      routeDisplay: r.routeDisplay,
+      packageName: r.packageTypeName,
+      orderCount: r.orderCount,
+      omset: r.omset,
+      ojolCount: r.ojolCount,
+      jastipCount: r.jastipCount,
+      createdAtFormatted: r.createdAtFormatted,
+    })),
     todayStats: {
       totalOrders,
       totalOmset,
-      reportCount: todayReports?.length || 0,
+      reportCount: todayReports.length,
     },
   };
 }

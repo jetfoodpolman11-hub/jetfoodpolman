@@ -13,8 +13,8 @@ interface AdminLoginScreenProps {
 
 export function AdminLoginScreen({ redirectTo }: AdminLoginScreenProps) {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@jetfoodpolman.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -110,7 +110,7 @@ export function AdminLoginScreen({ redirectTo }: AdminLoginScreenProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@jetfoodpolman.com"
+                placeholder="jetfoodpolman11@gmail.com"
                 required
                 disabled={isPending}
                 className="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
@@ -152,24 +152,6 @@ export function AdminLoginScreen({ redirectTo }: AdminLoginScreenProps) {
             )}
           </button>
         </form>
-
-        {/* Demo Helper */}
-        <div className="pt-4 border-t border-slate-100 text-center space-y-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-            Akses Cepat Pengujian:
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("admin@jetfoodpolman.com");
-              setPassword("admin123");
-              handleAdminSubmit("admin@jetfoodpolman.com", "admin123");
-            }}
-            className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-          >
-            ⚡ Masuk Cepat Super Admin
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,8 +1,13 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { UserRole } from "@/lib/constants";
 import { verifyMockSessionSignature } from "./cookie-signer";
+import {
+  fetchAllCouriersInternal,
+  findCourierByCodeInternal,
+} from "@/actions/couriers";
 
 export interface CurrentSessionData {
   user: {
@@ -24,58 +29,18 @@ export interface CurrentSessionData {
   } | null;
 }
 
-const MOCK_COURIER_DIRECTORY: Record<
-  string,
-  {
-    userId: string;
-    courierId: string;
-    fullName: string;
-    email: string;
-    phone: string;
-    vehicleType: string;
-    plateNumber: string;
-  }
-> = {
-  "JF-001": {
-    userId: "mock-courier-uuid",
-    courierId: "mock-courier-rec-id",
-    fullName: "Kurir Lapangan Ali",
-    email: "kurir@jetfoodpolman.com",
-    phone: "081234567890",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 1234 XX",
-  },
-  "JF-002": {
-    userId: "mock-courier-uuid-2",
-    courierId: "mock-courier-rec-2",
-    fullName: "Kurir Lapangan Budi",
-    email: "budi@jetfoodpolman.com",
-    phone: "081234567891",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 5678 YY",
-  },
-  "JF-003": {
-    userId: "mock-courier-uuid-3",
-    courierId: "mock-courier-rec-3",
-    fullName: "Kurir Lapangan Citra",
-    email: "citra@jetfoodpolman.com",
-    phone: "081234567892",
-    vehicleType: "Sepeda Motor",
-    plateNumber: "DC 9012 ZZ",
-  },
-};
-
 /**
- * Get current authenticated user profile and courier info from Server Components or Server Actions
+ * Get current authenticated user profile and courier info from Server Components or Server Actions.
+ * All dummy/demo courier directories have been removed — resolves strictly from Supabase or active Admin session.
  */
 export async function getCurrentSession(): Promise<CurrentSessionData | null> {
   try {
     const cookieStore = await cookies();
     const mockRole = cookieStore.get("jf_mock_role")?.value as UserRole | undefined;
-    const mockCode = cookieStore.get("jf_mock_code")?.value || "JF-001";
+    const mockCode = cookieStore.get("jf_mock_code")?.value || "";
     const mockSig = cookieStore.get("jf_mock_sig")?.value;
 
-    // Support local development mock session cookies ONLY when cryptographically signed & not expired
+    // 1. Verify HMAC-SHA256 signed session cookie
     if (
       mockRole &&
       (mockRole === "ADMIN" || mockRole === "KURIR") &&
@@ -86,58 +51,60 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
       )
     ) {
       if (mockRole === "ADMIN") {
-        const mockEmail =
-          cookieStore.get("jf_mock_email")?.value || "admin@jetfoodpolman.com";
-        const mockName =
-          cookieStore.get("jf_mock_name")?.value || "Super Admin JetFood";
+        const adminEmail =
+          cookieStore.get("jf_mock_email")?.value ||
+          "jetfoodpolman11@gmail.com";
+        const adminName =
+          cookieStore.get("jf_mock_name")?.value || "Admin JetFood Polman";
 
         return {
           user: {
-            id: "mock-admin-uuid",
-            email: mockEmail,
+            id: "de610516-c19a-4e0f-930a-a0731b469f65",
+            email: adminEmail,
           },
           profile: {
-            id: "mock-admin-uuid",
+            id: "de610516-c19a-4e0f-930a-a0731b469f65",
             role: "ADMIN",
-            fullName: mockName,
-            phone: "081234567890",
+            fullName: adminName,
+            phone: null,
             isActive: true,
           },
           courier: null,
         };
       }
 
-      const directoryEntry =
-        MOCK_COURIER_DIRECTORY[mockCode.toUpperCase()] ||
-        MOCK_COURIER_DIRECTORY["JF-001"];
+      // Role is KURIR: verify against registered couriers in Supabase
+      if (mockCode) {
+        const liveCourier = await findCourierByCodeInternal(mockCode);
+        if (!liveCourier || !liveCourier.isActive || liveCourier.status !== "ACTIVE") {
+          return null;
+        }
 
-      const mockEmail =
-        cookieStore.get("jf_mock_email")?.value || directoryEntry.email;
-      const mockName =
-        cookieStore.get("jf_mock_name")?.value || directoryEntry.fullName;
+        return {
+          user: {
+            id: liveCourier.userId,
+            email: liveCourier.email,
+          },
+          profile: {
+            id: liveCourier.userId,
+            role: "KURIR",
+            fullName: liveCourier.fullName,
+            phone: liveCourier.phone,
+            isActive: liveCourier.isActive,
+          },
+          courier: {
+            id: liveCourier.id,
+            courierCode: liveCourier.courierCode,
+            vehicleType: liveCourier.vehicleType,
+            plateNumber: liveCourier.plateNumber,
+          },
+        };
+      }
 
-      return {
-        user: {
-          id: directoryEntry.userId,
-          email: mockEmail,
-        },
-        profile: {
-          id: directoryEntry.userId,
-          role: "KURIR",
-          fullName: mockName,
-          phone: directoryEntry.phone,
-          isActive: true,
-        },
-        courier: {
-          id: directoryEntry.courierId,
-          courierCode: mockCode.toUpperCase(),
-          vehicleType: directoryEntry.vehicleType,
-          plateNumber: directoryEntry.plateNumber,
-        },
-      };
+      return null;
     }
 
-    // Standard Supabase Auth
+    // 2. Standard Supabase Auth JWT Fallback
     const supabase = await createClient();
     const {
       data: { user },
@@ -148,30 +115,72 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
       return null;
     }
 
-    // Fetch user profile
-    const { data: profile } = await supabase
+    // Check if user is the official Admin
+    if (
+      user.email.toLowerCase() === "jetfoodpolman11@gmail.com" ||
+      user.user_metadata?.role === "ADMIN"
+    ) {
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+        profile: {
+          id: user.id,
+          role: "ADMIN",
+          fullName:
+            (user.user_metadata?.full_name as string) || "Admin JetFood Polman",
+          phone: null,
+          isActive: true,
+        },
+        courier: null,
+      };
+    }
+
+    // Check if user is a registered courier
+    const allCouriers = await fetchAllCouriersInternal();
+    const matchedCourier = allCouriers.find(
+      (c) =>
+        c.userId === user.id ||
+        c.email.toLowerCase() === user.email?.toLowerCase()
+    );
+
+    if (matchedCourier) {
+      const active =
+        matchedCourier.isActive && matchedCourier.status === "ACTIVE";
+      return {
+        user: {
+          id: matchedCourier.userId,
+          email: matchedCourier.email,
+        },
+        profile: {
+          id: matchedCourier.userId,
+          role: "KURIR",
+          fullName: matchedCourier.fullName,
+          phone: matchedCourier.phone,
+          isActive: active,
+        },
+        courier: active
+          ? {
+              id: matchedCourier.id,
+              courierCode: matchedCourier.courierCode,
+              vehicleType: matchedCourier.vehicleType,
+              plateNumber: matchedCourier.plateNumber,
+            }
+          : null,
+      };
+    }
+
+    // Query PostgreSQL profiles table if available
+    const adminClient = createAdminClient();
+    const { data: profile } = await adminClient
       .from("profiles")
       .select("id, role, full_name, phone, is_active")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    let courierData = null;
-    if (profile?.role === "KURIR") {
-      const { data: courier } = await supabase
-        .from("couriers")
-        .select("id, courier_code, vehicle_type, plate_number, status")
-        .eq("user_id", user.id)
-        .single();
-
-      // If courier record is deactivated, mark profile inactive in session
-      if (courier && courier.status === "ACTIVE") {
-        courierData = {
-          id: courier.id,
-          courierCode: courier.courier_code,
-          vehicleType: courier.vehicle_type,
-          plateNumber: courier.plate_number,
-        };
-      }
+    if (!profile) {
+      return null;
     }
 
     return {
@@ -179,18 +188,14 @@ export async function getCurrentSession(): Promise<CurrentSessionData | null> {
         id: user.id,
         email: user.email,
       },
-      profile: profile
-        ? {
-            id: profile.id,
-            role: profile.role,
-            fullName: profile.full_name,
-            phone: profile.phone,
-            isActive:
-              profile.is_active &&
-              (profile.role !== "KURIR" || courierData !== null),
-          }
-        : null,
-      courier: courierData,
+      profile: {
+        id: profile.id,
+        role: profile.role,
+        fullName: profile.full_name,
+        phone: profile.phone,
+        isActive: profile.is_active,
+      },
+      courier: null,
     };
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) {

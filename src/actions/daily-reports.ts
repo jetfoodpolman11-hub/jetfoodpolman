@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCourier, requireAdmin, requireAuth } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { readCloudJson, writeCloudJson } from "@/lib/supabase/cloud-json-store";
 import { getWitaDateString, formatWitaDateTime } from "@/lib/date";
 import {
   type DailyReportInput,
@@ -44,7 +45,6 @@ export interface DailyReportActionResult {
   report?: DailyReportRecord;
 }
 
-// In-memory mock storage for local preview & offline development
 interface MockReportEntry {
   id: string;
   courier_id: string;
@@ -80,76 +80,9 @@ interface MockReportEntry {
   updated_at: string;
 }
 
-let localMockReports: MockReportEntry[] = [
-  {
-    id: "rep-seed-1",
-    courier_id: "mock-courier-rec-id",
-    courier_name: "Kurir Lapangan Ali",
-    courier_code: "JF-001",
-    date: getWitaDateString(),
-    package_type_id: "pkg-reguler-id",
-    package_type_name: "Reguler",
-    origin_province_id: "76",
-    origin_province_name: "SULAWESI BARAT",
-    origin_regency_id: "7602",
-    origin_regency_name: "KABUPATEN POLEWALI MANDAR",
-    origin_district_id: "7602050",
-    origin_district_name: "POLEWALI",
-    origin_village_id: "7602050002",
-    origin_village_name: "MANDING",
-    dest_province_id: "76",
-    dest_province_name: "SULAWESI BARAT",
-    dest_regency_id: "7602",
-    dest_regency_name: "KABUPATEN POLEWALI MANDAR",
-    dest_district_id: "7602050",
-    dest_district_name: "POLEWALI",
-    dest_village_id: "7602050003",
-    dest_village_name: "MADATTE",
-    order_count: 14,
-    omset: 140000,
-    ojol_count: 3,
-    ojol_amount: 30000,
-    jastip_count: 2,
-    jastip_amount: 25000,
-    notes: "Pengiriman rute dalam kota Polewali lancar.",
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: "rep-seed-2",
-    courier_id: "mock-courier-rec-id",
-    courier_name: "Kurir Lapangan Ali",
-    courier_code: "JF-001",
-    date: getWitaDateString(),
-    package_type_id: "pkg-express-id",
-    package_type_name: "Express",
-    origin_province_id: "76",
-    origin_province_name: "SULAWESI BARAT",
-    origin_regency_id: "7602",
-    origin_regency_name: "KABUPATEN POLEWALI MANDAR",
-    origin_district_id: "7602050",
-    origin_district_name: "POLEWALI",
-    origin_village_id: "7602050002",
-    origin_village_name: "MANDING",
-    dest_province_id: "76",
-    dest_province_name: "SULAWESI BARAT",
-    dest_regency_id: "7602",
-    dest_regency_name: "KABUPATEN POLEWALI MANDAR",
-    dest_district_id: "7602051",
-    dest_district_name: "BINUANG",
-    dest_village_id: "7602051002",
-    dest_village_name: "AMASSANGAN",
-    order_count: 8,
-    omset: 96000,
-    ojol_count: 1,
-    ojol_amount: 15000,
-    jastip_count: 0,
-    jastip_amount: 0,
-    notes: "Paket express ke Amassangan, Binuang.",
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-];
+// Empty initial store (all dummy/demo report history removed)
+let localMockReports: MockReportEntry[] = [];
+const REPORTS_CLOUD_FILE = "daily_reports.json";
 
 /**
  * Reset local mock reports for automated test repeatability (Disabled in production)
@@ -262,7 +195,10 @@ export async function createDailyReportAction(
   }
 
   // 1b. Indonesian Regional Hierarchy & Route validation
-  const routeValidation = validateRouteSelection(input.origin, input.destination);
+  const routeValidation = validateRouteSelection(
+    input.origin,
+    input.destination
+  );
   if (!routeValidation.isValid) {
     return {
       success: false,
@@ -272,7 +208,9 @@ export async function createDailyReportAction(
 
   // 2. Validate package type is active
   const activePackages = await getPackageTypes({ activeOnly: true });
-  const matchedPackage = activePackages.find((p) => p.id === input.packageTypeId);
+  const matchedPackage = activePackages.find(
+    (p) => p.id === input.packageTypeId
+  );
   if (!matchedPackage) {
     return {
       success: false,
@@ -287,9 +225,43 @@ export async function createDailyReportAction(
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
+  const buildReportEntry = (): MockReportEntry => ({
+    id: `rep-${Date.now()}`,
+    courier_id: courierId,
+    courier_name: session.profile?.fullName || "Kurir",
+    courier_code: session.courier?.courierCode || "JF-KURIR",
+    date: input.date,
+    package_type_id: matchedPackage.id,
+    package_type_name: matchedPackage.name,
+    origin_province_id: input.origin.provinceId,
+    origin_province_name: input.origin.provinceName,
+    origin_regency_id: input.origin.regencyId,
+    origin_regency_name: input.origin.regencyName,
+    origin_district_id: input.origin.districtId,
+    origin_district_name: input.origin.districtName,
+    origin_village_id: input.origin.villageId,
+    origin_village_name: input.origin.villageName,
+    dest_province_id: input.destination.provinceId,
+    dest_province_name: input.destination.provinceName,
+    dest_regency_id: input.destination.regencyId,
+    dest_regency_name: input.destination.regencyName,
+    dest_district_id: input.destination.districtId,
+    dest_district_name: input.destination.districtName,
+    dest_village_id: input.destination.villageId,
+    dest_village_name: input.destination.villageName,
+    order_count: input.orderCount,
+    omset: input.omset,
+    ojol_count: input.ojolCount,
+    ojol_amount: input.ojolAmount,
+    jastip_count: input.jastipCount,
+    jastip_amount: input.jastipAmount,
+    notes: input.notes?.trim() || null,
+    created_at: nowIso,
+    updated_at: nowIso,
+  });
+
   // Local Mock Handling
   if (isPlaceholderEnv) {
-    // Duplicate check: same courier, same date, same origin & dest village, same package, submitted recently
     const duplicate = localMockReports.find(
       (r) =>
         r.courier_id === courierId &&
@@ -304,45 +276,12 @@ export async function createDailyReportAction(
     if (duplicate) {
       return {
         success: false,
-        error: "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
+        error:
+          "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
       };
     }
 
-    const newReport: MockReportEntry = {
-      id: `rep-${Date.now()}`,
-      courier_id: courierId,
-      courier_name: session.profile?.fullName || "Kurir",
-      courier_code: session.courier?.courierCode || "JF-KURIR",
-      date: input.date,
-      package_type_id: matchedPackage.id,
-      package_type_name: matchedPackage.name,
-      origin_province_id: input.origin.provinceId,
-      origin_province_name: input.origin.provinceName,
-      origin_regency_id: input.origin.regencyId,
-      origin_regency_name: input.origin.regencyName,
-      origin_district_id: input.origin.districtId,
-      origin_district_name: input.origin.districtName,
-      origin_village_id: input.origin.villageId,
-      origin_village_name: input.origin.villageName,
-      dest_province_id: input.destination.provinceId,
-      dest_province_name: input.destination.provinceName,
-      dest_regency_id: input.destination.regencyId,
-      dest_regency_name: input.destination.regencyName,
-      dest_district_id: input.destination.districtId,
-      dest_district_name: input.destination.districtName,
-      dest_village_id: input.destination.villageId,
-      dest_village_name: input.destination.villageName,
-      order_count: input.orderCount,
-      omset: input.omset,
-      ojol_count: input.ojolCount,
-      ojol_amount: input.ojolAmount,
-      jastip_count: input.jastipCount,
-      jastip_amount: input.jastipAmount,
-      notes: input.notes?.trim() || null,
-      created_at: nowIso,
-      updated_at: nowIso,
-    };
-
+    const newReport = buildReportEntry();
     localMockReports.unshift(newReport);
 
     revalidatePath("/courier/dashboard");
@@ -359,10 +298,10 @@ export async function createDailyReportAction(
   }
 
   // Supabase PostgreSQL Handling
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Check duplicate
-  const { data: duplicate } = await supabase
+  const { data: duplicate, error: dupErr } = await supabase
     .from("daily_reports")
     .select("id")
     .eq("courier_id", courierId)
@@ -374,10 +313,52 @@ export async function createDailyReportAction(
     .eq("omset", input.omset)
     .maybeSingle();
 
+  if (dupErr && dupErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    const cloudDup = cloudList.find(
+      (r) =>
+        r.courier_id === courierId &&
+        r.date === input.date &&
+        r.origin_village_id === input.origin.villageId &&
+        r.dest_village_id === input.destination.villageId &&
+        r.package_type_id === input.packageTypeId &&
+        r.order_count === input.orderCount &&
+        r.omset === input.omset
+    );
+
+    if (cloudDup) {
+      return {
+        success: false,
+        error:
+          "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
+      };
+    }
+
+    const newReport = buildReportEntry();
+    cloudList.unshift(newReport);
+    await writeCloudJson(REPORTS_CLOUD_FILE, cloudList);
+
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/history");
+    revalidatePath("/courier/reports/new");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/reports");
+
+    return {
+      success: true,
+      message: "Laporan operasional berhasil disimpan ke Supabase.",
+      reportId: newReport.id,
+    };
+  }
+
   if (duplicate) {
     return {
       success: false,
-      error: "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
+      error:
+        "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
     };
   }
 
@@ -466,7 +447,10 @@ export async function updateDailyReportAction(
   }
 
   // Indonesian Regional Hierarchy & Route validation
-  const routeValidation = validateRouteSelection(rawInput.origin, rawInput.destination);
+  const routeValidation = validateRouteSelection(
+    rawInput.origin,
+    rawInput.destination
+  );
   if (!routeValidation.isValid) {
     return {
       success: false,
@@ -487,17 +471,20 @@ export async function updateDailyReportAction(
     // Ownership check for courier
     if (!isAdmin) {
       if (existing.courier_id !== courierId) {
-        return { success: false, error: "Anda tidak memiliki akses mengubah laporan kurir lain." };
+        return {
+          success: false,
+          error: "Anda tidak memiliki akses mengubah laporan kurir lain.",
+        };
       }
       if (existing.date !== todayWita) {
         return {
           success: false,
-          error: "Laporan pada tanggal lampau telah terkunci dan tidak dapat diubah oleh kurir.",
+          error:
+            "Laporan pada tanggal lampau telah terkunci dan tidak dapat diubah oleh kurir.",
         };
       }
     }
 
-    // Update fields
     existing.package_type_id = rawInput.packageTypeId;
     existing.origin_province_id = rawInput.origin.provinceId;
     existing.origin_province_name = rawInput.origin.provinceName;
@@ -537,7 +524,7 @@ export async function updateDailyReportAction(
     };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Fetch report for ownership verification
   const { data: existing, error: fetchErr } = await supabase
@@ -546,18 +533,88 @@ export async function updateDailyReportAction(
     .eq("id", reportId)
     .single();
 
+  if (fetchErr && fetchErr.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    const cloudExisting = cloudList.find((r) => r.id === reportId);
+    if (!cloudExisting) {
+      return { success: false, error: "Laporan tidak ditemukan." };
+    }
+    if (!isAdmin) {
+      if (cloudExisting.courier_id !== courierId) {
+        return {
+          success: false,
+          error: "Anda tidak memiliki akses mengubah laporan kurir lain.",
+        };
+      }
+      if (cloudExisting.date !== todayWita) {
+        return {
+          success: false,
+          error:
+            "Laporan pada tanggal lampau telah terkunci dan tidak dapat diubah oleh kurir.",
+        };
+      }
+    }
+
+    cloudExisting.package_type_id = rawInput.packageTypeId;
+    cloudExisting.origin_province_id = rawInput.origin.provinceId;
+    cloudExisting.origin_province_name = rawInput.origin.provinceName;
+    cloudExisting.origin_regency_id = rawInput.origin.regencyId;
+    cloudExisting.origin_regency_name = rawInput.origin.regencyName;
+    cloudExisting.origin_district_id = rawInput.origin.districtId;
+    cloudExisting.origin_district_name = rawInput.origin.districtName;
+    cloudExisting.origin_village_id = rawInput.origin.villageId;
+    cloudExisting.origin_village_name = rawInput.origin.villageName;
+    cloudExisting.dest_province_id = rawInput.destination.provinceId;
+    cloudExisting.dest_province_name = rawInput.destination.provinceName;
+    cloudExisting.dest_regency_id = rawInput.destination.regencyId;
+    cloudExisting.dest_regency_name = rawInput.destination.regencyName;
+    cloudExisting.dest_district_id = rawInput.destination.districtId;
+    cloudExisting.dest_district_name = rawInput.destination.districtName;
+    cloudExisting.dest_village_id = rawInput.destination.villageId;
+    cloudExisting.dest_village_name = rawInput.destination.villageName;
+    cloudExisting.order_count = rawInput.orderCount;
+    cloudExisting.omset = rawInput.omset;
+    cloudExisting.ojol_count = rawInput.ojolCount;
+    cloudExisting.ojol_amount = rawInput.ojolAmount;
+    cloudExisting.jastip_count = rawInput.jastipCount;
+    cloudExisting.jastip_amount = rawInput.jastipAmount;
+    cloudExisting.notes = rawInput.notes?.trim() || null;
+    cloudExisting.updated_at = new Date().toISOString();
+
+    await writeCloudJson(REPORTS_CLOUD_FILE, cloudList);
+
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/history");
+    revalidatePath(`/courier/reports/${reportId}/edit`);
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/reports");
+
+    return {
+      success: true,
+      message: "Laporan operasional berhasil diperbarui.",
+      reportId: cloudExisting.id,
+    };
+  }
+
   if (fetchErr || !existing) {
     return { success: false, error: "Laporan tidak ditemukan." };
   }
 
   if (!isAdmin) {
     if (existing.courier_id !== courierId) {
-      return { success: false, error: "Anda tidak memiliki akses mengubah laporan kurir lain." };
+      return {
+        success: false,
+        error: "Anda tidak memiliki akses mengubah laporan kurir lain.",
+      };
     }
     if (existing.date !== todayWita) {
       return {
         success: false,
-        error: "Laporan pada tanggal lampau telah terkunci dan tidak dapat diubah oleh kurir.",
+        error:
+          "Laporan pada tanggal lampau telah terkunci dan tidak dapat diubah oleh kurir.",
       };
     }
   }
@@ -632,7 +689,7 @@ export async function getCourierDailyReports(options?: {
     return filtered.map((e) => mapMockToRecord(e, courierId));
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("daily_reports")
@@ -649,6 +706,18 @@ export async function getCourierDailyReports(options?: {
   }
 
   const { data, error } = await query;
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    let filtered = cloudList.filter((r) => r.courier_id === courierId);
+    if (options?.date) {
+      filtered = filtered.filter((r) => r.date === options.date);
+    }
+    return filtered.map((e) => mapMockToRecord(e, courierId));
+  }
 
   if (error || !data) {
     console.error("Error fetching courier daily reports:", error);
@@ -733,7 +802,7 @@ export async function getDailyReportById(
     return mapMockToRecord(found, courierId);
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("daily_reports")
@@ -747,6 +816,19 @@ export async function getDailyReportById(
     `)
     .eq("id", reportId)
     .single();
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    const found = cloudList.find((r) => r.id === reportId);
+    if (!found) return null;
+    if (!isAdmin && found.courier_id !== courierId) {
+      return null;
+    }
+    return mapMockToRecord(found, courierId);
+  }
 
   if (error || !data) {
     return null;
@@ -857,20 +939,26 @@ export async function getAdminDailyReports(
 
   const page = Math.max(1, options?.page || 1);
   const perPage = Math.max(1, Math.min(5000, options?.perPage || 10));
-  const date = options?.date && options.date !== "ALL" ? options.date : undefined;
-  const startDate = options?.startDate && options.startDate !== "ALL" ? options.startDate : undefined;
-  const endDate = options?.endDate && options.endDate !== "ALL" ? options.endDate : undefined;
-  const courierId = options?.courierId && options.courierId !== "ALL" ? options.courierId : undefined;
-  const packageTypeId = options?.packageTypeId && options.packageTypeId !== "ALL" ? options.packageTypeId : undefined;
+  const date =
+    options?.date && options.date !== "ALL" ? options.date : undefined;
+  const startDate =
+    options?.startDate && options.startDate !== "ALL"
+      ? options.startDate
+      : undefined;
+  const endDate =
+    options?.endDate && options.endDate !== "ALL" ? options.endDate : undefined;
+  const courierId =
+    options?.courierId && options.courierId !== "ALL"
+      ? options.courierId
+      : undefined;
+  const packageTypeId =
+    options?.packageTypeId && options.packageTypeId !== "ALL"
+      ? options.packageTypeId
+      : undefined;
   const routeQuery = sanitizePostgrestFilterInput(options?.routeQuery);
 
-  const isPlaceholderEnv =
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
-
-  if (isPlaceholderEnv) {
-    let filtered = [...localMockReports];
-
+  const filterMemoryList = (source: MockReportEntry[]) => {
+    let filtered = [...source];
     if (date) {
       filtered = filtered.filter((r) => r.date === date);
     }
@@ -888,8 +976,10 @@ export async function getAdminDailyReports(
     }
     if (routeQuery) {
       filtered = filtered.filter((r) => {
-        const originDesc = `${r.origin_village_name} ${r.origin_district_name} ${r.origin_regency_name}`.toLowerCase();
-        const destDesc = `${r.dest_village_name} ${r.dest_district_name} ${r.dest_regency_name}`.toLowerCase();
+        const originDesc =
+          `${r.origin_village_name} ${r.origin_district_name} ${r.origin_regency_name}`.toLowerCase();
+        const destDesc =
+          `${r.dest_village_name} ${r.dest_district_name} ${r.dest_regency_name}`.toLowerCase();
         return originDesc.includes(routeQuery) || destDesc.includes(routeQuery);
       });
     }
@@ -899,16 +989,24 @@ export async function getAdminDailyReports(
       totalOrders: filtered.reduce((acc, r) => acc + (r.order_count || 0), 0),
       totalOmset: filtered.reduce((acc, r) => acc + (r.omset || 0), 0),
       totalOjolCount: filtered.reduce((acc, r) => acc + (r.ojol_count || 0), 0),
-      totalOjolAmount: filtered.reduce((acc, r) => acc + (r.ojol_amount || 0), 0),
-      totalJastipCount: filtered.reduce((acc, r) => acc + (r.jastip_count || 0), 0),
-      totalJastipAmount: filtered.reduce((acc, r) => acc + (r.jastip_amount || 0), 0),
+      totalOjolAmount: filtered.reduce(
+        (acc, r) => acc + (r.ojol_amount || 0),
+        0
+      ),
+      totalJastipCount: filtered.reduce(
+        (acc, r) => acc + (r.jastip_count || 0),
+        0
+      ),
+      totalJastipAmount: filtered.reduce(
+        (acc, r) => acc + (r.jastip_amount || 0),
+        0
+      ),
     };
 
     const total = filtered.length;
     const totalPages = Math.ceil(total / perPage) || 1;
     const offset = (page - 1) * perPage;
     const paged = filtered.slice(offset, offset + perPage);
-
     const reports = paged.map((e) => mapMockToRecord(e));
 
     return {
@@ -919,9 +1017,17 @@ export async function getAdminDailyReports(
       totalPages,
       summary,
     };
+  };
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    return filterMemoryList(localMockReports);
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("daily_reports")
@@ -964,6 +1070,14 @@ export async function getAdminDailyReports(
   query = query.range(offset, offset + perPage - 1);
 
   const { data, count, error } = await query;
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    return filterMemoryList(cloudList);
+  }
 
   if (error || !data) {
     console.error("Error fetching admin daily reports:", error);
@@ -1097,14 +1211,34 @@ export async function deleteDailyReportAction(
     return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("daily_reports")
     .delete()
     .eq("id", reportId);
 
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+    const idx = cloudList.findIndex((r) => r.id === reportId);
+    if (idx === -1) {
+      return { success: false, error: "Laporan tidak ditemukan." };
+    }
+    cloudList.splice(idx, 1);
+    await writeCloudJson(REPORTS_CLOUD_FILE, cloudList);
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/courier/history");
+    return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
+  }
+
   if (error) {
-    return { success: false, error: `Gagal menghapus laporan: ${error.message}` };
+    return {
+      success: false,
+      error: `Gagal menghapus laporan: ${error.message}`,
+    };
   }
 
   revalidatePath("/admin/reports");
@@ -1113,4 +1247,3 @@ export async function deleteDailyReportAction(
 
   return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
 }
-
