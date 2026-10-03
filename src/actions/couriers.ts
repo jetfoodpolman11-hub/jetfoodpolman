@@ -26,6 +26,48 @@ export interface ActionResult {
   message?: string;
 }
 
+const MOCK_COURIERS: CourierWithProfile[] = [
+  {
+    id: "mock-courier-rec-id",
+    userId: "mock-courier-user-id",
+    courierCode: "JF-001",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 1234 XX",
+    status: "ACTIVE",
+    fullName: "Kurir Lapangan Ali",
+    email: "kurir@jetfood.id",
+    phone: "081234567890",
+    isActive: true,
+    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+  {
+    id: "mock-courier-rec-2",
+    userId: "mock-courier-user-2",
+    courierCode: "JF-002",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 5678 YY",
+    status: "ACTIVE",
+    fullName: "Kurir Lapangan Budi",
+    email: "budi@jetfood.id",
+    phone: "081234567891",
+    isActive: true,
+    createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
+  },
+  {
+    id: "mock-courier-rec-3",
+    userId: "mock-courier-user-3",
+    courierCode: "JF-003",
+    vehicleType: "Sepeda Motor",
+    plateNumber: "DC 9012 ZZ",
+    status: "ACTIVE",
+    fullName: "Kurir Lapangan Citra",
+    email: "citra@jetfood.id",
+    phone: "081234567892",
+    isActive: true,
+    createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
+  },
+];
+
 /**
  * Fetch all couriers with their associated profiles
  */
@@ -34,6 +76,28 @@ export async function getCouriers(options?: {
   status?: string;
 }): Promise<CourierWithProfile[]> {
   await requireAdmin();
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    let list = [...MOCK_COURIERS];
+    if (options?.status && (options.status === "ACTIVE" || options.status === "INACTIVE")) {
+      list = list.filter((c) => c.status === options.status);
+    }
+    if (options?.search) {
+      const q = options.search.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.fullName.toLowerCase().includes(q) ||
+          c.courierCode.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }
+
   const supabase = await createClient();
 
   let query = supabase

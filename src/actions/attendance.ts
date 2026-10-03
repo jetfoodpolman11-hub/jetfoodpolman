@@ -509,6 +509,8 @@ export async function getCourierAttendanceHistory(): Promise<AttendanceRecord[]>
  */
 export async function getAdminAttendanceList(options?: {
   date?: string;
+  startDate?: string;
+  endDate?: string;
   courierId?: string;
 }): Promise<AttendanceRecord[]> {
   await requireAdmin();
@@ -521,6 +523,12 @@ export async function getAdminAttendanceList(options?: {
     let filtered = [...localMockAttendance];
     if (options?.date) {
       filtered = filtered.filter((a) => a.date === options.date);
+    }
+    if (options?.startDate) {
+      filtered = filtered.filter((a) => a.date >= options.startDate!);
+    }
+    if (options?.endDate) {
+      filtered = filtered.filter((a) => a.date <= options.endDate!);
     }
     if (options?.courierId && options.courierId !== "ALL") {
       filtered = filtered.filter((a) => a.courier_id === options.courierId);
@@ -566,6 +574,12 @@ export async function getAdminAttendanceList(options?: {
 
   if (options?.date) {
     query = query.eq("date", options.date);
+  }
+  if (options?.startDate) {
+    query = query.gte("date", options.startDate);
+  }
+  if (options?.endDate) {
+    query = query.lte("date", options.endDate);
   }
 
   if (options?.courierId && options.courierId !== "ALL") {

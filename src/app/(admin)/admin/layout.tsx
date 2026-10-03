@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import Link from "next/link";
 import Image from "next/image";
 import { LogoutButton } from "@/components/shared/logout-button";
-import { ShieldCheck, Users, CalendarCheck, FileText, Database, LayoutDashboard } from "lucide-react";
+import { ShieldCheck, Users, CalendarCheck, FileText, Database, LayoutDashboard, BarChart3 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +67,13 @@ export default async function AdminLayout({
               >
                 <FileText className="h-4 w-4" />
                 Laporan
+              </Link>
+              <Link
+                href="/admin/analytics"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Rekap &amp; Analitik
               </Link>
               <Link
                 href="/admin/master-data"

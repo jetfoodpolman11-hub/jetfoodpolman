@@ -110,7 +110,28 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Quick Access Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Rekap & Analitik */}
+        <Card className="border-red-100 bg-gradient-to-r from-red-50/50 to-white shadow-xs">
+          <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Rekap &amp; Analitik Operasional
+              </h2>
+              <p className="text-xs text-slate-600 mt-1">
+                Rekapitulasi total order, omset, Ojol, Jastip, rekap faktual per kurir, dan distribusi rute per periode.
+              </p>
+            </div>
+            <Link
+              href="/admin/analytics"
+              className="inline-flex items-center justify-between px-4 py-2 rounded-lg bg-red-600 text-xs sm:text-sm font-semibold text-white hover:bg-red-700 transition-colors shadow-xs"
+            >
+              <span>Buka Rekap</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+
         {/* Presensi */}
         <Card className="border-orange-100 bg-gradient-to-r from-orange-50/50 to-white shadow-xs">
           <CardContent className="p-5 flex flex-col justify-between h-full gap-4">

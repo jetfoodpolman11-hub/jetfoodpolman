@@ -801,6 +801,8 @@ export async function getDailyReportById(
 
 export interface AdminReportFilterOptions {
   date?: string;
+  startDate?: string;
+  endDate?: string;
   courierId?: string;
   packageTypeId?: string;
   routeQuery?: string;
@@ -837,8 +839,10 @@ export async function getAdminDailyReports(
   await requireAdmin();
 
   const page = Math.max(1, options?.page || 1);
-  const perPage = Math.max(1, Math.min(100, options?.perPage || 10));
+  const perPage = Math.max(1, Math.min(5000, options?.perPage || 10));
   const date = options?.date && options.date !== "ALL" ? options.date : undefined;
+  const startDate = options?.startDate && options.startDate !== "ALL" ? options.startDate : undefined;
+  const endDate = options?.endDate && options.endDate !== "ALL" ? options.endDate : undefined;
   const courierId = options?.courierId && options.courierId !== "ALL" ? options.courierId : undefined;
   const packageTypeId = options?.packageTypeId && options.packageTypeId !== "ALL" ? options.packageTypeId : undefined;
   const routeQuery = options?.routeQuery?.trim().toLowerCase() || undefined;
@@ -852,6 +856,12 @@ export async function getAdminDailyReports(
 
     if (date) {
       filtered = filtered.filter((r) => r.date === date);
+    }
+    if (startDate) {
+      filtered = filtered.filter((r) => r.date >= startDate);
+    }
+    if (endDate) {
+      filtered = filtered.filter((r) => r.date <= endDate);
     }
     if (courierId) {
       filtered = filtered.filter((r) => r.courier_id === courierId);
@@ -914,6 +924,12 @@ export async function getAdminDailyReports(
 
   if (date) {
     query = query.eq("date", date);
+  }
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
   }
   if (courierId) {
     query = query.eq("courier_id", courierId);
