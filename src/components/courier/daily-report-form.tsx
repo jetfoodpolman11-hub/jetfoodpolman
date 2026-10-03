@@ -34,7 +34,65 @@ import {
   ShoppingBag,
   FileText,
   AlertTriangle,
+  Zap,
+  Sparkles,
 } from "lucide-react";
+
+function getServiceVisualMeta(name: string, description: string | null) {
+  const lower = name.toLowerCase().trim();
+  if (lower.includes("jastip")) {
+    return {
+      title: "Jastip",
+      subtitle: "Jasa Titip",
+      order: 1,
+      Icon: ShoppingBag,
+      idleIconBg: "bg-blue-50 text-blue-600 group-hover:bg-blue-100",
+    };
+  }
+  if (lower.includes("langsung")) {
+    return {
+      title: "Langsung",
+      subtitle: "Tanpa Admin",
+      order: 2,
+      Icon: Zap,
+      idleIconBg: "bg-amber-50 text-amber-600 group-hover:bg-amber-100",
+    };
+  }
+  if (lower.includes("ojol")) {
+    return {
+      title: "Ojol",
+      subtitle: "Ojek Online",
+      order: 3,
+      Icon: Bike,
+      idleIconBg: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100",
+    };
+  }
+  if (lower.includes("paket")) {
+    return {
+      title: "Paket",
+      subtitle: "Kirim Paket",
+      order: 4,
+      Icon: Package,
+      idleIconBg: "bg-red-50 text-[#DC0000] group-hover:bg-red-100",
+    };
+  }
+  if (lower.includes("random")) {
+    return {
+      title: "Random",
+      subtitle: "Jasa Suruh",
+      order: 5,
+      Icon: Sparkles,
+      idleIconBg: "bg-purple-50 text-purple-600 group-hover:bg-purple-100",
+    };
+  }
+  return {
+    title: toTitleCase(name),
+    subtitle: description ? description.slice(0, 14) : "Layanan",
+    order: 99,
+    Icon: Layers,
+    idleIconBg: "bg-slate-100 text-slate-700 group-hover:bg-slate-200",
+  };
+}
 
 interface DailyReportFormProps {
   provinces: Province[];
@@ -219,52 +277,119 @@ export function DailyReportForm({
       )}
 
 
-      {/* 1. Date & Package Type Card */}
-      <Card className="border-slate-200 shadow-2xs">
+      {/* 1. Fitur Laporan / Layanan (Grid Card Icons) & Tanggal Operasional */}
+      <Card className="border-slate-200 shadow-2xs rounded-2xl">
         <CardContent className="p-4 sm:p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Tanggal Operasional */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                <span>Tanggal Operasional (WITA)</span>
+          {/* Pilihan Fitur Laporan (Grid Card Icons: Jastip, Langsung, Ojol, Paket & Random) */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Package className="h-4 w-4 text-[#DC0000]" />
+                <span>Pilih Fitur / Jenis Layanan Laporan</span>
               </label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                disabled={isPending || isEditing}
-                className="text-xs"
-                required
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Tersinkronisasi otomatis dengan zona waktu Makassar (WITA).
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC0000] bg-red-50 px-2 py-0.5 rounded-full">
+                Wajib Dipilih
               </span>
             </div>
 
-            {/* Jenis Paket (Active Only) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5 text-slate-500" />
-                <span>Jenis Paket</span>
-              </label>
-              <select
-                value={packageTypeId}
-                onChange={(e) => setPackageTypeId(e.target.value)}
-                disabled={isPending}
-                className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                required
-              >
-                {packageTypes.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {p.description ? `— ${p.description}` : ""}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Hanya menampilkan jenis paket aktif yang disetujui Admin.
-              </span>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+              {[...packageTypes]
+                .sort(
+                  (a, b) =>
+                    getServiceVisualMeta(a.name, a.description).order -
+                    getServiceVisualMeta(b.name, b.description).order
+                )
+                .map((p) => {
+                  const meta = getServiceVisualMeta(p.name, p.description);
+                  const IconComponent = meta.Icon;
+                  const isSelected = packageTypeId === p.id;
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => setPackageTypeId(p.id)}
+                      className={`group relative flex flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? "border-[#DC0000] bg-red-50/70 ring-2 ring-[#DC0000]/20 shadow-[0_6px_16px_rgba(220,0,0,0.14)] -translate-y-0.5"
+                          : "border-slate-200/90 bg-white hover:border-red-200 hover:bg-slate-50/60 shadow-2xs active:scale-[0.98]"
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute top-1.5 right-1.5 text-[#DC0000]">
+                          <CheckCircle2 className="h-3.5 w-3.5 fill-[#DC0000] text-white" />
+                        </span>
+                      )}
+
+                      <div
+                        className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "bg-[#DC0000] text-white shadow-sm"
+                            : meta.idleIconBg
+                        }`}
+                      >
+                        <IconComponent className="h-5 w-5 stroke-[2.2]" />
+                      </div>
+
+                      <span
+                        className={`mt-2 text-xs font-extrabold tracking-tight block leading-tight ${
+                          isSelected ? "text-[#DC0000]" : "text-slate-900"
+                        }`}
+                      >
+                        {meta.title}
+                      </span>
+                      <span
+                        className={`text-[10px] font-medium block mt-0.5 truncate max-w-full ${
+                          isSelected ? "text-red-700/85" : "text-slate-400"
+                        }`}
+                      >
+                        {meta.subtitle}
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
+
+            {/* Active Package Description Pill */}
+            {(() => {
+              const selectedPkg = packageTypes.find((p) => p.id === packageTypeId);
+              if (!selectedPkg) return null;
+              const meta = getServiceVisualMeta(
+                selectedPkg.name,
+                selectedPkg.description
+              );
+              return (
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 border border-slate-200/70 px-3 py-2 text-[11px] text-slate-600">
+                  <span>
+                    Layanan terpilih:{" "}
+                    <strong className="text-slate-900 font-extrabold">
+                      {meta.title}
+                    </strong>
+                    {selectedPkg.description ? ` — ${selectedPkg.description}` : ""}
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Kolom Input Tanggal Operasional (WITA) */}
+          <div className="pt-3 border-t border-slate-100">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-[#DC0000]" />
+              <span>Tanggal Operasional (WITA)</span>
+            </label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={isPending || isEditing}
+              className="text-xs font-semibold"
+              required
+            />
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Tersinkronisasi otomatis dengan zona waktu Makassar (WITA).
+            </span>
           </div>
         </CardContent>
       </Card>
