@@ -19,53 +19,53 @@ export default async function CourierLayout({
   const session = await requireCourier();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-20 sm:pb-8">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-2xs">
-        <div className="mx-auto flex h-16 max-w-lg items-center justify-between px-4 sm:max-w-3xl lg:max-w-4xl">
-          <Link href="/courier/dashboard" className="flex items-center gap-2.5">
+    <div className="min-h-screen bg-slate-50/60 flex flex-col font-sans pb-24 sm:pb-8">
+      {/* Top Header (Red Signature Bar) */}
+      <header className="sticky top-0 z-40 bg-[#DC0000] border-b border-red-900/25 shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+        <div className="mx-auto flex h-16 max-w-lg items-center justify-between px-5 sm:max-w-3xl lg:max-w-4xl">
+          <Link href="/courier/dashboard" className="flex items-center gap-3">
             <Image
-              src="/images/logo.png"
+              src="/images/logo-white.png"
               alt="JetFood Logo"
-              width={120}
-              height={40}
-              className="h-8 w-auto object-contain"
+              width={130}
+              height={44}
+              className="h-9 w-auto object-contain"
               priority
             />
-            <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase">
-              {session.courier?.courierCode || "JF-KURIR"}
+            <span className="rounded-full bg-white text-slate-950 px-3 py-0.5 text-[11px] font-black tracking-wider uppercase shadow-2xs">
+              {session.courier?.courierCode || "JF-001"}
             </span>
           </Link>
 
           {/* Desktop Nav Links (Hidden on small mobile) */}
-          <nav className="hidden sm:flex items-center gap-1 text-xs font-semibold text-slate-600">
+          <nav className="hidden sm:flex items-center gap-1 text-xs font-semibold text-white/90">
             <Link
               href="/courier/dashboard"
-              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/15 transition-colors"
             >
               Beranda
             </Link>
             <Link
               href="/courier/attendance"
-              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/15 transition-colors"
             >
               Absensi
             </Link>
             <Link
               href="/courier/reports/new"
-              className="px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 font-bold transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-white text-[#DC0000] hover:bg-red-50 font-bold transition-colors shadow-2xs"
             >
               + Input Laporan
             </Link>
             <Link
               href="/courier/history"
-              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/15 transition-colors"
             >
               Riwayat
             </Link>
             <Link
               href="/courier/account"
-              className="px-3 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/15 transition-colors"
             >
               Akun
             </Link>
@@ -74,14 +74,19 @@ export default async function CourierLayout({
           <div className="flex items-center gap-2">
             <Link
               href="/courier/account"
-              className="text-right hidden sm:block hover:opacity-80 transition-opacity"
+              className="text-right hidden sm:block hover:opacity-85 transition-opacity"
             >
-              <span className="text-xs font-semibold text-slate-900 block leading-tight">
+              <span className="text-xs font-bold text-white block leading-tight">
                 {session.profile?.fullName || "Kurir"}
               </span>
-              <span className="text-[10px] text-slate-500 font-medium">Kurir Lapangan</span>
+              <span className="text-[10px] text-white/80 font-medium">Kurir JetFood</span>
             </Link>
-            <LogoutButton label="" showIcon={true} />
+            <LogoutButton
+              label=""
+              showIcon={true}
+              className="inline-flex items-center justify-center p-2 text-white hover:bg-white/15 rounded-xl transition-colors cursor-pointer"
+              iconClassName="h-6 w-6 stroke-[2.2]"
+            />
           </div>
         </div>
       </header>
