@@ -31,26 +31,14 @@ export class MockRegionProvider implements RegionProvider {
   ];
 
   private districts: District[] = [
-    { id: "7602010", regency_id: "7602", name: "TINAMBUNG" },
-    { id: "7602011", regency_id: "7602", name: "BALANIPA" },
-    { id: "7602012", regency_id: "7602", name: "LIMBORO" },
-    { id: "7602020", regency_id: "7602", name: "TUBBI TARAMANU" },
-    { id: "7602021", regency_id: "7602", name: "ALU" },
-    { id: "7602030", regency_id: "7602", name: "CAMPALAGIAN" },
-    { id: "7602031", regency_id: "7602", name: "LUYO" },
-    { id: "7602040", regency_id: "7602", name: "WONOMULYO" },
-    { id: "7602041", regency_id: "7602", name: "MAPILLI" },
-    { id: "7602042", regency_id: "7602", name: "TAPANGO" },
-    { id: "7602043", regency_id: "7602", name: "MATAKALI" },
-    { id: "7602044", regency_id: "7602", name: "BULO" },
     { id: "7602050", regency_id: "7602", name: "POLEWALI" },
     { id: "7602051", regency_id: "7602", name: "BINUANG" },
     { id: "7602052", regency_id: "7602", name: "ANREAPI" },
-    { id: "7602061", regency_id: "7602", name: "MATANGNGA" },
+    { id: "7602043", regency_id: "7602", name: "MATAKALI" },
   ];
 
   private villages: Village[] = [
-    // Kecamatan Polewali (7602050)
+    // 1. Kecamatan Polewali (7602050)
     { id: "7602050001", district_id: "7602050", name: "DARMA" },
     { id: "7602050002", district_id: "7602050", name: "MANDING" },
     { id: "7602050003", district_id: "7602050", name: "MADATTE" },
@@ -60,29 +48,34 @@ export class MockRegionProvider implements RegionProvider {
     { id: "7602050007", district_id: "7602050", name: "SULEWATANG" },
     { id: "7602050008", district_id: "7602050", name: "WATTANG" },
     { id: "7602050009", district_id: "7602050", name: "POLEWALI" },
-    // Kecamatan Wonomulyo (7602040)
-    { id: "7602040001", district_id: "7602040", name: "TUMPILING" },
-    { id: "7602040006", district_id: "7602040", name: "BUMIAYU" },
-    { id: "7602040007", district_id: "7602040", name: "BUMI MULYO" },
-    { id: "7602040008", district_id: "7602040", name: "SIDOREJO" },
-    { id: "7602040009", district_id: "7602040", name: "SIDODADI" },
-    { id: "7602040010", district_id: "7602040", name: "CAMPURJO" },
-    { id: "7602040015", district_id: "7602040", name: "SUGIH WARAS" },
-    // Kecamatan Matakali (7602043)
-    { id: "7602043001", district_id: "7602043", name: "MATAKALI" },
-    { id: "7602043002", district_id: "7602043", name: "PASIANG" },
-    // Kecamatan Campalagian (7602030)
-    { id: "7602030001", district_id: "7602030", name: "PARAPPE" },
-    { id: "7602030002", district_id: "7602030", name: "LALIKO" },
-    // Kecamatan Tinambung (7602010)
-    { id: "7602010001", district_id: "7602010", name: "BATULAYA" },
-    { id: "7602010002", district_id: "7602010", name: "TINAMBUNG" },
-    // Kecamatan Binuang (7602051)
-    { id: "7602051001", district_id: "7602051", name: "AMASSANGAN" },
-    { id: "7602051002", district_id: "7602051", name: "BINUANG" },
-    // Kecamatan Tapango (7602042)
-    { id: "7602042001", district_id: "7602042", name: "TAPANGO" },
-    { id: "7602042002", district_id: "7602042", name: "RAPPOANG" },
+
+    // 2. Kecamatan Binuang (7602051)
+    { id: "7602051001", district_id: "7602051", name: "TONYAMAN" },
+    { id: "7602051002", district_id: "7602051", name: "AMASSANGAN" },
+    { id: "7602051003", district_id: "7602051", name: "MIRRING" },
+    { id: "7602051004", district_id: "7602051", name: "PAKU" },
+    { id: "7602051005", district_id: "7602051", name: "BATETANGNGA" },
+    { id: "7602051006", district_id: "7602051", name: "KUAJANG" },
+    { id: "7602051007", district_id: "7602051", name: "MAMMI" },
+    { id: "7602051008", district_id: "7602051", name: "KALEOK" },
+    { id: "7602051009", district_id: "7602051", name: "REA" },
+    { id: "7602051010", district_id: "7602051", name: "AMOLA" },
+
+    // 3. Kecamatan Anreapi (7602052)
+    { id: "7602052002", district_id: "7602052", name: "ANREAPI" },
+    { id: "7602052003", district_id: "7602052", name: "KELAPA DUA" },
+    { id: "7602052004", district_id: "7602052", name: "PAPPANDANGAN" },
+    { id: "7602052005", district_id: "7602052", name: "DUAMPANUA" },
+    { id: "7602052006", district_id: "7602052", name: "KUNYI" },
+
+    // 4. Kecamatan Matakali (7602043)
+    { id: "7602043002", district_id: "7602043", name: "PATAMPANUA" },
+    { id: "7602043003", district_id: "7602043", name: "MATAKALI" },
+    { id: "7602043004", district_id: "7602043", name: "TONRO LIMA" },
+    { id: "7602043005", district_id: "7602043", name: "INDUMAKKOMBONG" },
+    { id: "7602043006", district_id: "7602043", name: "BARUMBUNG" },
+    { id: "7602043007", district_id: "7602043", name: "PASIANG" },
+    { id: "7602043008", district_id: "7602043", name: "BUNGA BUNGA" },
   ];
 
   async getProvinces(): Promise<Province[]> {

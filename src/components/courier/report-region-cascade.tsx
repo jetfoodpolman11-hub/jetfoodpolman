@@ -11,6 +11,15 @@ import { toTitleCase } from "@/lib/region/route";
 const POLMAN_PROVINCE = { id: "76", name: "SULAWESI BARAT" };
 const POLMAN_REGENCY = { id: "7602", name: "KABUPATEN POLEWALI MANDAR" };
 
+// Restricted to 4 operational districts: Polewali, Binuang, Anreapi, Matakali
+const ALLOWED_DISTRICTS: District[] = [
+  { id: "7602050", regency_id: "7602", name: "POLEWALI" },
+  { id: "7602051", regency_id: "7602", name: "BINUANG" },
+  { id: "7602052", regency_id: "7602", name: "ANREAPI" },
+  { id: "7602043", regency_id: "7602", name: "MATAKALI" },
+];
+const ALLOWED_DISTRICT_ORDER = ["7602050", "7602051", "7602052", "7602043"];
+
 interface ReportRegionCascadeProps {
   label: string;
   badgeText: string;
@@ -29,30 +38,32 @@ export function ReportRegionCascade({
   onChange,
   disabled = false,
 }: ReportRegionCascadeProps) {
-  // Cascading lists within Polewali Mandar
-  const [districts, setDistricts] = useState<District[]>([]);
+  // Cascading lists within Polewali Mandar (4 operational districts)
+  const [districts, setDistricts] = useState<District[]>(ALLOWED_DISTRICTS);
   const [villages, setVillages] = useState<Village[]>([]);
 
   // Selected entities
   const [districtId, setDistrictId] = useState(initialValue?.districtId || "");
   const [villageId, setVillageId] = useState(initialValue?.villageId || "");
 
-  const [loadingLevel, setLoadingLevel] = useState<"district" | "village" | null>("district");
+  const [loadingLevel, setLoadingLevel] = useState<"district" | "village" | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Load Polewali Mandar districts on mount
+  // Sync Polewali Mandar districts on mount and filter to the 4 allowed districts
   useEffect(() => {
     let isMounted = true;
     getDistricts(POLMAN_REGENCY.id)
       .then((data) => {
         if (!isMounted) return;
-        setDistricts(data);
+        const filtered = ALLOWED_DISTRICT_ORDER
+          .map((id) => data.find((d) => d.id === id))
+          .filter((d): d is District => Boolean(d));
+        setDistricts(filtered.length === 4 ? filtered : ALLOWED_DISTRICTS);
         setApiError(null);
       })
-      .catch((err) => {
+      .catch(() => {
         if (!isMounted) return;
-        console.error("Failed to load Polman districts:", err);
-        setApiError("Gagal memuat daftar kecamatan di Polewali Mandar.");
+        setDistricts(ALLOWED_DISTRICTS);
       })
       .finally(() => {
         if (isMounted) setLoadingLevel(null);
