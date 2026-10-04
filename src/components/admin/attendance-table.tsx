@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { type AttendanceRecord } from "@/actions/attendance";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  deleteAttendanceAction,
+  type AttendanceRecord,
+} from "@/actions/attendance";
 import { AttendanceCorrectionModal } from "./attendance-correction-modal";
 import { Pagination } from "./pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit3, Clock, AlertCircle, FileSpreadsheet, FileDown } from "lucide-react";
+import {
+  Edit3,
+  Clock,
+  AlertCircle,
+  FileSpreadsheet,
+  FileDown,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { formatWitaDateFull } from "@/lib/date";
 import { exportToExcel, exportToPdf } from "@/lib/export-utils";
 
@@ -25,7 +37,28 @@ export function AttendanceTable({
   total = records.length,
   perPage = 10,
 }: AttendanceTableProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+
+  const handleDeleteAttendance = (item: AttendanceRecord) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus permanen data presensi kurir "${item.courierName || "Kurir"}" pada tanggal ${formatWitaDateFull(item.date)}?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    startTransition(async () => {
+      const res = await deleteAttendanceAction(item.id);
+      setDeletingId(null);
+      if (!res.success) {
+        window.alert(res.error || "Gagal menghapus data presensi.");
+      } else {
+        router.refresh();
+      }
+    });
+  };
 
   const buildExportConfig = () => {
     const completedOut = records.filter((r) => !!r.clockOutTime).length;
@@ -228,15 +261,33 @@ export function AttendanceTable({
 
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingRecord(item)}
-                          className="gap-1 text-slate-600 hover:text-slate-900 text-xs"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          <span>Koreksi</span>
-                        </Button>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingRecord(item)}
+                            className="gap-1 text-slate-600 hover:text-slate-900 text-xs cursor-pointer"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            <span>Koreksi</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isPending && deletingId === item.id}
+                            onClick={() => handleDeleteAttendance(item)}
+                            className="gap-1 border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-semibold cursor-pointer"
+                            title="Hapus presensi ini"
+                          >
+                            {isPending && deletingId === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                            <span>Hapus</span>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

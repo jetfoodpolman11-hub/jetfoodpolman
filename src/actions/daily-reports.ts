@@ -1242,8 +1242,10 @@ export async function deleteDailyReportAction(
   }
 
   revalidatePath("/admin/reports");
+  revalidatePath("/admin/analytics");
   revalidatePath("/admin/dashboard");
   revalidatePath("/courier/history");
+  revalidatePath("/courier/dashboard");
 
   return { success: true, message: "Laporan berhasil dihapus oleh Admin." };
 }

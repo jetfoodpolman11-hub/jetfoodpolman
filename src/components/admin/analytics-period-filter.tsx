@@ -3,6 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  deleteAnalyticsPeriodAction,
+  deleteAnalyticsCourierRecapAction,
+  deleteAnalyticsRouteRecapAction,
   type AnalyticsPeriod,
   type OperationalAnalyticsSummary,
   type CourierRecapItem,
@@ -18,6 +21,8 @@ import {
   RotateCcw,
   FileSpreadsheet,
   FileDown,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 interface AnalyticsPeriodFilterProps {
@@ -204,7 +209,7 @@ export function AnalyticsPeriodFilter({
           </span>
         </div>
 
-        {/* Export PDF & Excel Buttons for Rekap */}
+        {/* Export PDF, Excel & Delete Period Buttons for Rekap */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -225,6 +230,42 @@ export function AnalyticsPeriodFilter({
           >
             <FileDown className="h-3.5 w-3.5 text-red-700" />
             <span>Download Rekap PDF</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={
+              isPending ||
+              ((summary?.totalReports || 0) === 0 &&
+                (summary?.totalAttendanceDays || 0) === 0)
+            }
+            onClick={() => {
+              const confirmed = window.confirm(
+                `PERINGATAN: Apakah Anda yakin ingin menghapus permanen SELURUH data rekap (laporan harian & absensi) pada periode "${periodLabel}"?`
+              );
+              if (!confirmed) return;
+              startTransition(async () => {
+                const res = await deleteAnalyticsPeriodAction({
+                  period: currentPeriod,
+                  startDate,
+                  endDate,
+                });
+                if (!res.success) {
+                  window.alert(res.error || "Gagal menghapus data rekap periode ini.");
+                } else {
+                  router.refresh();
+                }
+              });
+            }}
+            className="gap-1.5 border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-bold cursor-pointer"
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-700" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5 text-rose-700" />
+            )}
+            <span>Hapus Rekap Periode Ini</span>
           </Button>
         </div>
       </div>
@@ -306,5 +347,123 @@ export function AnalyticsPeriodFilter({
         </form>
       )}
     </div>
+  );
+}
+
+export function DeleteCourierRecapButton({
+  courierId,
+  courierName,
+  period,
+  startDate,
+  endDate,
+  periodLabel,
+  hasData,
+}: {
+  courierId: string;
+  courierName: string;
+  period: AnalyticsPeriod;
+  startDate: string;
+  endDate: string;
+  periodLabel: string;
+  hasData: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const handleDelete = () => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus seluruh data rekap (laporan & absensi) kurir "${courierName}" pada periode ${periodLabel}?`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const res = await deleteAnalyticsCourierRecapAction(courierId, {
+        period,
+        startDate,
+        endDate,
+      });
+      if (!res.success) {
+        window.alert(res.error || "Gagal menghapus data rekap kurir.");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={isPending || !hasData}
+      onClick={handleDelete}
+      className="gap-1 border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-semibold h-8 cursor-pointer disabled:opacity-40"
+      title={hasData ? "Hapus rekap kurir ini pada periode aktif" : "Tidak ada data pada periode ini"}
+    >
+      {isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Trash2 className="h-3.5 w-3.5" />
+      )}
+      <span>Hapus</span>
+    </Button>
+  );
+}
+
+export function DeleteRouteRecapButton({
+  routeKey,
+  routeLabel,
+  period,
+  startDate,
+  endDate,
+  periodLabel,
+}: {
+  routeKey: string;
+  routeLabel: string;
+  period: AnalyticsPeriod;
+  startDate: string;
+  endDate: string;
+  periodLabel: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const handleDelete = () => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus seluruh laporan rekap rute "${routeLabel}" pada periode ${periodLabel}?`
+    );
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const res = await deleteAnalyticsRouteRecapAction(routeKey, {
+        period,
+        startDate,
+        endDate,
+      });
+      if (!res.success) {
+        window.alert(res.error || "Gagal menghapus data rekap rute.");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={isPending}
+      onClick={handleDelete}
+      className="gap-1 border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-semibold h-8 cursor-pointer"
+      title="Hapus rekap rute ini pada periode aktif"
+    >
+      {isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Trash2 className="h-3.5 w-3.5" />
+      )}
+      <span>Hapus</span>
+    </Button>
   );
 }

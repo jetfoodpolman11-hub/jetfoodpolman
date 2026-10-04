@@ -1,6 +1,10 @@
 import { requireAdmin } from "@/lib/auth/guards";
 import { getOperationalAnalytics } from "@/actions/analytics";
-import { AnalyticsPeriodFilter } from "@/components/admin/analytics-period-filter";
+import {
+  AnalyticsPeriodFilter,
+  DeleteCourierRecapButton,
+  DeleteRouteRecapButton,
+} from "@/components/admin/analytics-period-filter";
 import {
   Card,
   CardHeader,
@@ -547,12 +551,13 @@ export default async function AdminAnalyticsPage({
                   <th className="py-3 px-4 text-right">Total Omset</th>
                   <th className="py-3 px-4 text-right">Ojol</th>
                   <th className="py-3 px-4 text-right">Jastip</th>
+                  <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {courierRecap.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
                       Belum ada data kurir yang terdaftar.
                     </td>
                   </tr>
@@ -599,6 +604,17 @@ export default async function AdminAnalyticsPage({
                           {formatRupiah(c.jastipAmount)}
                         </span>
                       </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <DeleteCourierRecapButton
+                          courierId={c.courierId}
+                          courierName={c.courierName}
+                          period={data.period}
+                          startDate={data.startDate}
+                          endDate={data.endDate}
+                          periodLabel={data.periodLabel}
+                          hasData={c.attendanceDays > 0 || c.reportCount > 0}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -622,6 +638,7 @@ export default async function AdminAnalyticsPage({
                     <td className="py-3 px-4 text-right">
                       {formatNumber(summary.totalJastipCount)} order ({formatRupiah(summary.totalJastipAmount)})
                     </td>
+                    <td className="py-3 px-4" />
                   </tr>
                 </tfoot>
               )}
@@ -650,12 +667,13 @@ export default async function AdminAnalyticsPage({
                   <th className="py-3 px-4 text-right">Jumlah Order</th>
                   <th className="py-3 px-4 text-right">Total Omset</th>
                   <th className="py-3 px-4 text-center">Jumlah Laporan</th>
+                  <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {routeRecap.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
                       Belum ada laporan rute perjalanan pada periode yang dipilih.
                     </td>
                   </tr>
@@ -680,6 +698,16 @@ export default async function AdminAnalyticsPage({
                           {formatNumber(r.reportCount)} laporan
                         </span>
                       </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <DeleteRouteRecapButton
+                          routeKey={r.routeKey}
+                          routeLabel={`${r.originDisplay} → ${r.destDisplay}`}
+                          period={data.period}
+                          startDate={data.startDate}
+                          endDate={data.endDate}
+                          periodLabel={data.periodLabel}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -699,6 +727,7 @@ export default async function AdminAnalyticsPage({
                     <td className="py-3 px-4 text-center">
                       {formatNumber(summary.totalReports)} laporan
                     </td>
+                    <td className="py-3 px-4" />
                   </tr>
                 </tfoot>
               )}

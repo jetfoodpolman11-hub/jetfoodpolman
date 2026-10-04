@@ -1,7 +1,12 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { type DailyReportRecord } from "@/actions/daily-reports";
+import { useRouter } from "next/navigation";
+import {
+  deleteDailyReportAction,
+  type DailyReportRecord,
+} from "@/actions/daily-reports";
 import { Pagination } from "./pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +21,8 @@ import {
   ShoppingBag,
   FileSpreadsheet,
   FileDown,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 interface ReportTableProps {
@@ -33,6 +40,27 @@ export function ReportTable({
   total,
   perPage,
 }: ReportTableProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteReport = (item: DailyReportRecord) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus permanen laporan kurir "${item.courierName || "Kurir"}" (${item.routeDisplay}) pada tanggal ${formatWitaDateFull(item.date)}?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    startTransition(async () => {
+      const res = await deleteDailyReportAction(item.id);
+      setDeletingId(null);
+      if (!res.success) {
+        window.alert(res.error || "Gagal menghapus laporan operasional.");
+      } else {
+        router.refresh();
+      }
+    });
+  };
   const buildExportConfig = () => {
     const pageOrders = reports.reduce((s, r) => s + r.orderCount, 0);
     const pageOmset = reports.reduce((s, r) => s + r.omset, 0);
@@ -263,18 +291,36 @@ export function ReportTable({
                       </div>
                     </td>
 
-                    {/* 8. Action: View Detail */}
+                    {/* 8. Action: View Detail & Delete */}
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Link href={`/admin/reports/${item.id}`}>
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        <Link href={`/admin/reports/${item.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-slate-700 hover:text-slate-900 text-xs font-semibold h-8"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>Detail</span>
+                          </Button>
+                        </Link>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
-                          className="gap-1 text-slate-700 hover:text-slate-900 text-xs font-semibold h-8"
+                          disabled={isPending && deletingId === item.id}
+                          onClick={() => handleDeleteReport(item)}
+                          className="gap-1 border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-semibold h-8 cursor-pointer"
+                          title="Hapus laporan ini"
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>Detail</span>
+                          {isPending && deletingId === item.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                          <span>Hapus</span>
                         </Button>
-                      </Link>
+                      </div>
                     </td>
                   </tr>
                 );

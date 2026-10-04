@@ -1132,3 +1132,83 @@ export async function adminCorrectAttendanceAction(
 
   return { success: true, message: "Koreksi data presensi berhasil disimpan." };
 }
+
+/**
+ * Server Action: Permanently Delete Attendance Record (Admin ONLY)
+ */
+export async function deleteAttendanceAction(
+  attendanceId: string
+): Promise<AttendanceActionResult> {
+  await requireAdmin();
+
+  if (!attendanceId || typeof attendanceId !== "string" || !attendanceId.trim()) {
+    return { success: false, error: "ID presensi tidak valid." };
+  }
+
+  const isPlaceholderEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+  if (isPlaceholderEnv) {
+    const idx = localMockAttendance.findIndex((a) => a.id === attendanceId);
+    if (idx === -1) {
+      return { success: false, error: "Data presensi tidak ditemukan." };
+    }
+    localMockAttendance.splice(idx, 1);
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/analytics");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/courier/attendance");
+    revalidatePath("/courier/dashboard");
+    return {
+      success: true,
+      message: "Data presensi kurir berhasil dihapus permanen.",
+    };
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .eq("id", attendanceId);
+
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockAttendanceEntry[]>(
+      ATTENDANCE_CLOUD_FILE,
+      []
+    );
+    const idx = cloudList.findIndex((a) => a.id === attendanceId);
+    if (idx === -1) {
+      return { success: false, error: "Data presensi tidak ditemukan." };
+    }
+    cloudList.splice(idx, 1);
+    await writeCloudJson(ATTENDANCE_CLOUD_FILE, cloudList);
+    revalidatePath("/admin/attendance");
+    revalidatePath("/admin/analytics");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/courier/attendance");
+    revalidatePath("/courier/dashboard");
+    return {
+      success: true,
+      message: "Data presensi kurir berhasil dihapus permanen.",
+    };
+  }
+
+  if (error) {
+    return {
+      success: false,
+      error: `Gagal menghapus data presensi: ${error.message}`,
+    };
+  }
+
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/courier/attendance");
+  revalidatePath("/courier/dashboard");
+
+  return {
+    success: true,
+    message: "Data presensi kurir berhasil dihapus permanen.",
+  };
+}

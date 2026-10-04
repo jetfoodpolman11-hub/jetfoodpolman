@@ -1,6 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getWitaDateString } from "@/lib/date";
 import { getCouriers } from "@/actions/couriers";
 import { getAdminAttendanceList } from "@/actions/attendance";
@@ -331,5 +333,166 @@ export async function getOperationalAnalytics(
     },
     courierRecap,
     routeRecap,
+  };
+}
+
+export interface AnalyticsDeleteResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Server Action: Delete all operational reports & attendance in the selected period (Admin ONLY)
+ */
+export async function deleteAnalyticsPeriodAction(
+  input?: AnalyticsFilterInput
+): Promise<AnalyticsDeleteResult> {
+  await requireAdmin();
+
+  const { startDate, endDate, periodLabel } = await resolvePeriodDateRange(input);
+
+  const supabase = createAdminClient();
+
+  const [repRes, attRes] = await Promise.all([
+    supabase
+      .from("daily_reports")
+      .delete()
+      .gte("date", startDate)
+      .lte("date", endDate),
+    supabase
+      .from("attendance")
+      .delete()
+      .gte("date", startDate)
+      .lte("date", endDate),
+  ]);
+
+  if (repRes.error) {
+    return {
+      success: false,
+      error: `Gagal menghapus laporan rekap: ${repRes.error.message}`,
+    };
+  }
+  if (attRes.error) {
+    return {
+      success: false,
+      error: `Gagal menghapus presensi rekap: ${attRes.error.message}`,
+    };
+  }
+
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/courier/dashboard");
+  revalidatePath("/courier/history");
+  revalidatePath("/courier/attendance");
+
+  return {
+    success: true,
+    message: `Seluruh data rekap (laporan & absensi) pada periode ${periodLabel} berhasil dihapus.`,
+  };
+}
+
+/**
+ * Server Action: Delete a specific courier's operational reports & attendance in the selected period (Admin ONLY)
+ */
+export async function deleteAnalyticsCourierRecapAction(
+  courierId: string,
+  input?: AnalyticsFilterInput
+): Promise<AnalyticsDeleteResult> {
+  await requireAdmin();
+
+  if (!courierId || !courierId.trim()) {
+    return { success: false, error: "ID kurir tidak valid." };
+  }
+
+  const { startDate, endDate, periodLabel } = await resolvePeriodDateRange(input);
+  const supabase = createAdminClient();
+
+  const [repRes, attRes] = await Promise.all([
+    supabase
+      .from("daily_reports")
+      .delete()
+      .eq("courier_id", courierId)
+      .gte("date", startDate)
+      .lte("date", endDate),
+    supabase
+      .from("attendance")
+      .delete()
+      .eq("courier_id", courierId)
+      .gte("date", startDate)
+      .lte("date", endDate),
+  ]);
+
+  if (repRes.error) {
+    return {
+      success: false,
+      error: `Gagal menghapus laporan kurir: ${repRes.error.message}`,
+    };
+  }
+  if (attRes.error) {
+    return {
+      success: false,
+      error: `Gagal menghapus presensi kurir: ${attRes.error.message}`,
+    };
+  }
+
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/courier/dashboard");
+  revalidatePath("/courier/history");
+  revalidatePath("/courier/attendance");
+
+  return {
+    success: true,
+    message: `Data rekap kurir pada periode ${periodLabel} berhasil dihapus.`,
+  };
+}
+
+/**
+ * Server Action: Delete operational reports for a specific route in the selected period (Admin ONLY)
+ */
+export async function deleteAnalyticsRouteRecapAction(
+  routeKey: string,
+  input?: AnalyticsFilterInput
+): Promise<AnalyticsDeleteResult> {
+  await requireAdmin();
+
+  const parts = (routeKey || "").split("->");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return { success: false, error: "Identitas rute tidak valid." };
+  }
+
+  const [originVillageId, destVillageId] = parts;
+  const { startDate, endDate, periodLabel } = await resolvePeriodDateRange(input);
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("daily_reports")
+    .delete()
+    .eq("origin_village_id", originVillageId)
+    .eq("dest_village_id", destVillageId)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  if (error) {
+    return {
+      success: false,
+      error: `Gagal menghapus data rekap rute: ${error.message}`,
+    };
+  }
+
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/courier/dashboard");
+  revalidatePath("/courier/history");
+
+  return {
+    success: true,
+    message: `Data rekap rute pada periode ${periodLabel} berhasil dihapus.`,
   };
 }
