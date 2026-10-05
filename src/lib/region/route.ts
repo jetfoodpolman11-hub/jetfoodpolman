@@ -93,10 +93,10 @@ export function formatRouteDisplay(
 }
 
 /**
- * Validates route selection according to Phase 8 business rules:
+ * Validates route selection according to operational business rules:
  * - Departure and destination must be fully selected (Province -> Regency -> District -> Village).
- * - Identical departure and destination villages are strictly forbidden.
- * - Routes within the SAME district are completely VALID (e.g. Manding -> Madatte in Polewali).
+ * - Routes within the SAME village/kelurahan or SAME district are completely VALID
+ *   (e.g. Manding -> Manding or Manding -> Madatte in Polewali).
  * - Regional IDs must be valid Indonesian codes following the hierarchy.
  */
 export function validateRouteSelection(
@@ -217,22 +217,13 @@ export function validateRouteSelection(
     };
   }
 
-  // 4. Identical Route Rule: Origin Village must NOT equal Destination Village
-  if (origin.villageId === destination.villageId) {
-    return {
-      isValid: false,
-      error: "Wilayah keberangkatan dan tujuan tidak boleh desa/kelurahan yang sama. Rute pengantaran harus valid.",
-      isSameDistrict: origin.districtId === destination.districtId,
-      isIdentical: true,
-    };
-  }
-
-  // 5. Same District Rule: Allowed if villages are different!
+  // 4. Same Village & Same District Evaluation (Both are valid operational routes!)
+  const isIdentical = origin.villageId === destination.villageId;
   const isSameDistrict = origin.districtId === destination.districtId;
 
   return {
     isValid: true,
     isSameDistrict,
-    isIdentical: false,
+    isIdentical,
   };
 }

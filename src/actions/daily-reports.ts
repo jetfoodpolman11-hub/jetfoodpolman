@@ -226,7 +226,7 @@ export async function createDailyReportAction(
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
 
   const buildReportEntry = (): MockReportEntry => ({
-    id: `rep-${Date.now()}`,
+    id: `rep-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     courier_id: courierId,
     courier_name: session.profile?.fullName || "Kurir",
     courier_code: session.courier?.courierCode || "JF-KURIR",
@@ -262,25 +262,6 @@ export async function createDailyReportAction(
 
   // Local Mock Handling
   if (isPlaceholderEnv) {
-    const duplicate = localMockReports.find(
-      (r) =>
-        r.courier_id === courierId &&
-        r.date === input.date &&
-        r.origin_village_id === input.origin.villageId &&
-        r.dest_village_id === input.destination.villageId &&
-        r.package_type_id === input.packageTypeId &&
-        r.order_count === input.orderCount &&
-        r.omset === input.omset
-    );
-
-    if (duplicate) {
-      return {
-        success: false,
-        error:
-          "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
-      };
-    }
-
     const newReport = buildReportEntry();
     localMockReports.unshift(newReport);
 
@@ -289,6 +270,7 @@ export async function createDailyReportAction(
     revalidatePath("/courier/reports/new");
     revalidatePath("/admin/dashboard");
     revalidatePath("/admin/reports");
+    revalidatePath("/admin/analytics");
 
     return {
       success: true,
@@ -299,68 +281,6 @@ export async function createDailyReportAction(
 
   // Supabase PostgreSQL Handling
   const supabase = createAdminClient();
-
-  // Check duplicate
-  const { data: duplicate, error: dupErr } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("courier_id", courierId)
-    .eq("date", input.date)
-    .eq("origin_village_id", input.origin.villageId)
-    .eq("dest_village_id", input.destination.villageId)
-    .eq("package_type_id", input.packageTypeId)
-    .eq("order_count", input.orderCount)
-    .eq("omset", input.omset)
-    .maybeSingle();
-
-  if (dupErr && dupErr.message.includes("schema cache")) {
-    const cloudList = await readCloudJson<MockReportEntry[]>(
-      REPORTS_CLOUD_FILE,
-      []
-    );
-    const cloudDup = cloudList.find(
-      (r) =>
-        r.courier_id === courierId &&
-        r.date === input.date &&
-        r.origin_village_id === input.origin.villageId &&
-        r.dest_village_id === input.destination.villageId &&
-        r.package_type_id === input.packageTypeId &&
-        r.order_count === input.orderCount &&
-        r.omset === input.omset
-    );
-
-    if (cloudDup) {
-      return {
-        success: false,
-        error:
-          "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
-      };
-    }
-
-    const newReport = buildReportEntry();
-    cloudList.unshift(newReport);
-    await writeCloudJson(REPORTS_CLOUD_FILE, cloudList);
-
-    revalidatePath("/courier/dashboard");
-    revalidatePath("/courier/history");
-    revalidatePath("/courier/reports/new");
-    revalidatePath("/admin/dashboard");
-    revalidatePath("/admin/reports");
-
-    return {
-      success: true,
-      message: "Laporan operasional berhasil disimpan ke Supabase.",
-      reportId: newReport.id,
-    };
-  }
-
-  if (duplicate) {
-    return {
-      success: false,
-      error:
-        "Laporan serupa untuk rute dan paket ini sudah pernah disimpan hari ini.",
-    };
-  }
 
   const { data: inserted, error } = await supabase
     .from("daily_reports")
@@ -395,6 +315,30 @@ export async function createDailyReportAction(
     .select("id")
     .single();
 
+  if (error && error.message.includes("schema cache")) {
+    const cloudList = await readCloudJson<MockReportEntry[]>(
+      REPORTS_CLOUD_FILE,
+      []
+    );
+
+    const newReport = buildReportEntry();
+    cloudList.unshift(newReport);
+    await writeCloudJson(REPORTS_CLOUD_FILE, cloudList);
+
+    revalidatePath("/courier/dashboard");
+    revalidatePath("/courier/history");
+    revalidatePath("/courier/reports/new");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/reports");
+    revalidatePath("/admin/analytics");
+
+    return {
+      success: true,
+      message: "Laporan operasional berhasil disimpan ke Supabase.",
+      reportId: newReport.id,
+    };
+  }
+
   if (error || !inserted) {
     return {
       success: false,
@@ -407,6 +351,7 @@ export async function createDailyReportAction(
   revalidatePath("/courier/reports/new");
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/reports");
+  revalidatePath("/admin/analytics");
 
   return {
     success: true,

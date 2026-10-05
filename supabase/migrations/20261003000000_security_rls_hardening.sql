@@ -101,3 +101,8 @@ CREATE POLICY "Couriers can update own daily reports"
     courier_id = public.get_auth_courier_id()
     AND date = (now() AT TIME ZONE 'Asia/Makassar')::date
   );
+
+-- 6. Allow same-village operational delivery routes (remove identical village constraint)
+ALTER TABLE public.daily_reports
+  DROP CONSTRAINT IF EXISTS daily_reports_route_not_identical;
+

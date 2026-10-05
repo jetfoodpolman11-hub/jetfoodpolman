@@ -33,7 +33,6 @@ import {
   Bike,
   ShoppingBag,
   FileText,
-  AlertTriangle,
   Zap,
   Sparkles,
 } from "lucide-react";
@@ -421,9 +420,7 @@ export function DailyReportForm({
       {origin?.villageId && destination?.villageId && (
         <div
           className={`p-4 rounded-xl border text-xs space-y-2 transition-all ${
-            isIdenticalRoute
-              ? "bg-rose-50 border-rose-200 text-rose-950"
-              : isSameDistrict
+            isIdenticalRoute || isSameDistrict
               ? "bg-blue-50/80 border-blue-200 text-blue-950"
               : "bg-emerald-50/80 border-emerald-200 text-emerald-950"
           }`}
@@ -433,8 +430,8 @@ export function DailyReportForm({
               Hasil Display Rute Perjalanan
             </span>
             {isIdenticalRoute ? (
-              <Badge variant="danger" className="text-[10px] font-bold">
-                Rute Tidak Sah (Identik)
+              <Badge variant="info" className="text-[10px] font-bold">
+                Rute Dalam Kelurahan/Desa Sama (Sah &amp; Valid)
               </Badge>
             ) : isSameDistrict ? (
               <Badge variant="info" className="text-[10px] font-bold">
@@ -452,10 +449,10 @@ export function DailyReportForm({
           </p>
 
           {isIdenticalRoute ? (
-            <p className="text-[11px] text-rose-700 flex items-center gap-1 font-medium">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <p className="text-[11px] text-blue-700 flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
               <span>
-                Desa/Kelurahan keberangkatan ({origin.villageName}) dan tujuan ({destination.villageName}) tidak boleh sama. Rute harus berbeda.
+                Pengantaran di dalam kelurahan/desa yang sama ({toTitleCase(origin.villageName)}, {toTitleCase(origin.districtName)}) sah dan valid untuk dilaporkan.
               </span>
             </p>
           ) : isSameDistrict ? (
@@ -653,7 +650,7 @@ export function DailyReportForm({
           variant="primary"
           size="md"
           isLoading={isPending}
-          disabled={isPending || isIdenticalRoute || !origin || !destination}
+          disabled={isPending || !origin || !destination}
           className="flex-1 gap-2 text-xs font-bold"
         >
           {isEditing ? (

@@ -101,15 +101,6 @@ export function validateDailyReportInput(input: DailyReportInput): {
       "Wilayah tujuan harus dipilih lengkap (Provinsi, Kab/Kota, Kec, Desa/Kel)";
   }
 
-  // Business rule: Origin and Destination must not be identical at the lowest level
-  if (
-    input.origin?.villageId &&
-    input.destination?.villageId &&
-    input.origin.villageId === input.destination.villageId
-  ) {
-    errors.route = "Wilayah keberangkatan dan tujuan tidak boleh identik";
-  }
-
   // Numeric metrics validation
   if (!isValidCount(input.orderCount)) {
     errors.orderCount =
