@@ -7,6 +7,7 @@ import {
   deleteAnalyticsCourierRecapAction,
   deleteAnalyticsRouteRecapAction,
   type AnalyticsPeriod,
+  type AnalyticsSubMenu,
   type OperationalAnalyticsSummary,
   type CourierRecapItem,
   type RouteRecapItem,
@@ -26,6 +27,8 @@ import {
 } from "lucide-react";
 
 interface AnalyticsPeriodFilterProps {
+  currentFeature?: AnalyticsSubMenu;
+  featureLabel?: string;
   currentPeriod: AnalyticsPeriod;
   startDate: string;
   endDate: string;
@@ -36,6 +39,8 @@ interface AnalyticsPeriodFilterProps {
 }
 
 export function AnalyticsPeriodFilter({
+  currentFeature = "akumulasi",
+  featureLabel = "Akumulasi Keseluruhan",
   currentPeriod,
   startDate,
   endDate,
@@ -55,7 +60,10 @@ export function AnalyticsPeriodFilter({
     setSelectedPeriod(preset);
     if (preset !== "custom") {
       startTransition(() => {
-        router.push(`/admin/analytics?period=${preset}`);
+        const params = new URLSearchParams();
+        params.set("feature", currentFeature);
+        params.set("period", preset);
+        router.push(`/admin/analytics?${params.toString()}`);
       });
     }
   };
@@ -64,6 +72,7 @@ export function AnalyticsPeriodFilter({
     e.preventDefault();
     startTransition(() => {
       const params = new URLSearchParams();
+      params.set("feature", currentFeature);
       params.set("period", "custom");
       if (customStart) params.set("startDate", customStart);
       if (customEnd) params.set("endDate", customEnd);
@@ -74,7 +83,10 @@ export function AnalyticsPeriodFilter({
   const handleReset = () => {
     setSelectedPeriod("today");
     startTransition(() => {
-      router.push("/admin/analytics?period=today");
+      const params = new URLSearchParams();
+      params.set("feature", currentFeature);
+      params.set("period", "today");
+      router.push(`/admin/analytics?${params.toString()}`);
     });
   };
 
@@ -89,23 +101,19 @@ export function AnalyticsPeriodFilter({
       presentCouriersCount: 0,
       totalAttendanceDays: 0,
       totalReports: 0,
+      activeFeatureCouriersCount: 0,
     };
 
+    const safeFeatureSlug = featureLabel.replace(/\s+/g, "_");
+
     return {
-      fileName: `Rekap_Operasional_JetFood_${startDate}_sd_${endDate}`,
-      title: "Rekapitulasi Operasional & Analitik Kurir",
+      fileName: `Rekap_${safeFeatureSlug}_JetFood_${startDate}_sd_${endDate}`,
+      title: `Rekapitulasi Operasional — ${featureLabel}`,
       subtitle: `Periode Rekapitulasi: ${periodLabel} (WITA)`,
       summaryItems: [
-        { label: "Total Order Paket", value: `${formatNumber(s.totalOrders)} Paket` },
-        { label: "Total Omset Paket", value: formatRupiah(s.totalOmset) },
-        {
-          label: "Total Ojol",
-          value: `${formatNumber(s.totalOjolCount)} Trip (${formatRupiah(s.totalOjolAmount)})`,
-        },
-        {
-          label: "Total Jastip",
-          value: `${formatNumber(s.totalJastipCount)} Order (${formatRupiah(s.totalJastipAmount)})`,
-        },
+        { label: "Sub-Menu Fitur", value: featureLabel },
+        { label: "Total Order / Transaksi", value: `${formatNumber(s.totalOrders)} Order` },
+        { label: "Total Omset", value: formatRupiah(s.totalOmset) },
         {
           label: "Kehadiran Kurir",
           value: `${formatNumber(s.presentCouriersCount)} Kurir (${s.totalAttendanceDays} Hari Kerja)`,
@@ -114,7 +122,7 @@ export function AnalyticsPeriodFilter({
       ],
       tables: [
         {
-          sectionTitle: "1. Rekapitulasi Operasional per Kurir",
+          sectionTitle: `1. Rekapitulasi Operasional per Kurir (${featureLabel})`,
           headers: [
             "No",
             "Kode Kurir",
@@ -122,10 +130,8 @@ export function AnalyticsPeriodFilter({
             "Status",
             "Hari Hadir",
             "Jumlah Laporan",
-            "Total Order Paket",
-            "Total Omset Paket",
-            "Ojol (Trip & Nilai)",
-            "Jastip (Order & Nilai)",
+            "Total Order",
+            "Total Omset",
           ],
           rows: courierRecap.map((c, idx) => [
             idx + 1,
@@ -134,10 +140,8 @@ export function AnalyticsPeriodFilter({
             c.status === "ACTIVE" ? "Aktif" : "Nonaktif",
             `${formatNumber(c.attendanceDays)} hari`,
             `${formatNumber(c.reportCount)} laporan`,
-            `${formatNumber(c.totalOrders)} paket`,
+            `${formatNumber(c.totalOrders)} order`,
             formatRupiah(c.totalOmset),
-            `${formatNumber(c.ojolCount)} trip (${formatRupiah(c.ojolAmount)})`,
-            `${formatNumber(c.jastipCount)} order (${formatRupiah(c.jastipAmount)})`,
           ]),
           footerRow:
             courierRecap.length > 0
@@ -148,20 +152,18 @@ export function AnalyticsPeriodFilter({
                   "",
                   `${formatNumber(s.totalAttendanceDays)} hari kerja`,
                   `${formatNumber(s.totalReports)} laporan`,
-                  `${formatNumber(s.totalOrders)} paket`,
+                  `${formatNumber(s.totalOrders)} order`,
                   formatRupiah(s.totalOmset),
-                  `${formatNumber(s.totalOjolCount)} trip (${formatRupiah(s.totalOjolAmount)})`,
-                  `${formatNumber(s.totalJastipCount)} order (${formatRupiah(s.totalJastipAmount)})`,
                 ]
               : undefined,
         },
         {
-          sectionTitle: "2. Rekapitulasi Operasional per Rute Perjalanan",
+          sectionTitle: `2. Rekapitulasi Operasional per Rute Perjalanan (${featureLabel})`,
           headers: [
             "No",
             "Wilayah Keberangkatan (Asal)",
             "Wilayah Tujuan",
-            "Jumlah Order Paket",
+            "Jumlah Order",
             "Total Omset Rute",
             "Jumlah Laporan",
           ],
@@ -169,7 +171,7 @@ export function AnalyticsPeriodFilter({
             idx + 1,
             r.originDisplay,
             r.destDisplay,
-            `${formatNumber(r.totalOrders)} paket`,
+            `${formatNumber(r.totalOrders)} order`,
             formatRupiah(r.totalOmset),
             `${formatNumber(r.reportCount)} laporan`,
           ]),
@@ -179,7 +181,7 @@ export function AnalyticsPeriodFilter({
                   "",
                   `TOTAL (${routeRecap.length} RUTE AKTIF)`,
                   "",
-                  `${formatNumber(s.totalOrders)} paket`,
+                  `${formatNumber(s.totalOrders)} order`,
                   formatRupiah(s.totalOmset),
                   `${formatNumber(s.totalReports)} laporan`,
                 ]
@@ -190,10 +192,10 @@ export function AnalyticsPeriodFilter({
   };
 
   const periodTabs: { id: AnalyticsPeriod; label: string }[] = [
-    { id: "today", label: "Hari Ini" },
-    { id: "week", label: "Minggu" },
-    { id: "month", label: "Bulan" },
-    { id: "custom", label: "Custom Date Range" },
+    { id: "today", label: "Harian (Hari Ini)" },
+    { id: "week", label: "Mingguan (7 Hari)" },
+    { id: "month", label: "Bulanan (Bulan Ini)" },
+    { id: "custom", label: "Pilih Tanggal (Custom)" },
   ];
 
   return (
@@ -202,7 +204,7 @@ export function AnalyticsPeriodFilter({
         <div className="flex flex-wrap items-center gap-2">
           <Calendar className="h-4 w-4 text-red-600" />
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Filter Periode Rekapitulasi
+            Filter Periode &amp; Tanggal ({featureLabel})
           </span>
           <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
             Aktif: <strong className="text-slate-900">{periodLabel}</strong>
@@ -219,7 +221,7 @@ export function AnalyticsPeriodFilter({
             className="gap-1.5 border-emerald-300 bg-emerald-50/80 text-emerald-800 hover:bg-emerald-100 text-xs font-bold"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
-            <span>Download Rekap Excel (.xls)</span>
+            <span>Download Excel (.xls)</span>
           </Button>
           <Button
             type="button"
@@ -229,7 +231,7 @@ export function AnalyticsPeriodFilter({
             className="gap-1.5 border-red-300 bg-red-50/80 text-red-800 hover:bg-red-100 text-xs font-bold"
           >
             <FileDown className="h-3.5 w-3.5 text-red-700" />
-            <span>Download Rekap PDF</span>
+            <span>Download PDF</span>
           </Button>
           <Button
             type="button"
@@ -282,7 +284,7 @@ export function AnalyticsPeriodFilter({
               onClick={() => handleSelectPreset(tab.id)}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 isActive
-                  ? "bg-red-600 text-white shadow-xs"
+                  ? "bg-[#DC0000] text-white shadow-xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
