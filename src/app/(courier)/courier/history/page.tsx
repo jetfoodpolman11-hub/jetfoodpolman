@@ -13,8 +13,6 @@ import {
   Calendar,
   Edit3,
   AlertCircle,
-  Bike,
-  ShoppingBag,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +20,43 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Riwayat Operasional — JetFood Polman",
 };
+
+function getHistoryMetricMeta(packageTypeName?: string) {
+  const lower = (packageTypeName || "").toLowerCase().trim();
+  if (lower.includes("jastip")) {
+    return {
+      qtyLabel: "Jumlah Titipan",
+      qtyUnit: "titipan",
+      nominalLabel: "Nominal Harga Titipan",
+    };
+  }
+  if (lower.includes("ojol")) {
+    return {
+      qtyLabel: "Jumlah Trip",
+      qtyUnit: "trip",
+      nominalLabel: "Nominal",
+    };
+  }
+  if (lower.includes("langsung")) {
+    return {
+      qtyLabel: "Jumlah Order Langsung",
+      qtyUnit: "order",
+      nominalLabel: "Nominal Order Langsung",
+    };
+  }
+  if (lower.includes("random")) {
+    return {
+      qtyLabel: "Jumlah Layanan",
+      qtyUnit: "layanan",
+      nominalLabel: "Nominal Layanan",
+    };
+  }
+  return {
+    qtyLabel: "Jumlah Order Paket",
+    qtyUnit: "paket",
+    nominalLabel: "Omset Pengiriman",
+  };
+}
 
 export default async function CourierHistoryPage({
   searchParams,
@@ -36,8 +71,16 @@ export default async function CourierHistoryPage({
 
   // Summary Metrics Calculation
   const totalReports = reports.length;
-  const totalOrders = reports.reduce((acc, r) => acc + r.orderCount, 0);
-  const totalOmset = reports.reduce((acc, r) => acc + r.omset, 0);
+  const totalOrders = reports.reduce(
+    (acc, r) =>
+      acc + (r.orderCount || 0) + (r.ojolCount || 0) + (r.jastipCount || 0),
+    0
+  );
+  const totalOmset = reports.reduce(
+    (acc, r) =>
+      acc + (r.omset || 0) + (r.ojolAmount || 0) + (r.jastipAmount || 0),
+    0
+  );
 
   return (
     <div className="space-y-5 pb-8 font-sans">
@@ -55,7 +98,7 @@ export default async function CourierHistoryPage({
           </span>
         </div>
         <p className="text-xs text-white/90 mt-2 leading-relaxed">
-          Arsip seluruh laporan rute, jumlah order paket, dan omset yang Anda kirimkan.
+          Arsip seluruh laporan rute, jumlah order layanan, dan omset yang Anda kirimkan.
         </p>
       </div>
 
@@ -69,7 +112,7 @@ export default async function CourierHistoryPage({
             <div className="text-lg sm:text-xl font-extrabold text-slate-900">
               {formatNumber(totalReports)}
             </div>
-            <span className="text-[10px] text-slate-500 block">pengiriman</span>
+            <span className="text-[10px] text-slate-500 block">laporan</span>
           </CardContent>
         </Card>
 
@@ -82,7 +125,7 @@ export default async function CourierHistoryPage({
             <div className="text-lg sm:text-xl font-extrabold text-slate-900">
               {formatNumber(totalOrders)}
             </div>
-            <span className="text-[10px] text-slate-500 block">paket</span>
+            <span className="text-[10px] text-slate-500 block">layanan</span>
           </CardContent>
         </Card>
 
@@ -157,89 +200,76 @@ export default async function CourierHistoryPage({
             </CardContent>
           </Card>
         ) : (
-          reports.map((report) => (
-            <Card
-              key={report.id}
-              className="border-slate-200 shadow-2xs hover:border-slate-300 transition-colors"
-            >
-              <CardContent className="p-4 space-y-3">
-                {/* Header: Date & Package */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
-                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{formatWitaDateFull(report.date)}</span>
+          reports.map((report) => {
+            const metricMeta = getHistoryMetricMeta(report.packageTypeName);
+            const effectiveQty =
+              (report.orderCount || 0) +
+              (report.ojolCount || 0) +
+              (report.jastipCount || 0);
+            const effectiveOmset =
+              (report.omset || 0) +
+              (report.ojolAmount || 0) +
+              (report.jastipAmount || 0);
+
+            return (
+              <Card
+                key={report.id}
+                className="border-slate-200 shadow-2xs hover:border-slate-300 transition-colors"
+              >
+                <CardContent className="p-4 space-y-3">
+                  {/* Header: Date & Package */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                      <span>{formatWitaDateFull(report.date)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Badge variant="neutral" className="text-[10px] font-bold">
+                        {report.packageTypeName}
+                      </Badge>
+                      {report.isEditableByCourier && (
+                        <Link
+                          href={`/courier/reports/${report.id}/edit`}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-md transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Edit</span>
+                        </Link>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Badge variant="neutral" className="text-[10px] font-bold">
-                      {report.packageTypeName}
-                    </Badge>
-                    {report.isEditableByCourier && (
-                      <Link
-                        href={`/courier/reports/${report.id}/edit`}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-md transition-colors"
-                      >
-                        <Edit3 className="h-3 w-3" />
-                        <span>Edit</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-
-                {/* Route */}
-                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider mb-0.5">
-                    Rute Perjalanan
-                  </span>
-                  <p className="text-xs font-extrabold text-slate-900 leading-snug">
-                    {report.routeDisplay}
-                  </p>
-                </div>
-
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">
-                      Jumlah Order
+                  {/* Route */}
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider mb-0.5">
+                      Rute Perjalanan
                     </span>
-                    <span className="font-extrabold text-slate-900">
-                      {report.orderCount} paket
-                    </span>
+                    <p className="text-xs font-extrabold text-slate-900 leading-snug">
+                      {report.routeDisplay}
+                    </p>
                   </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-semibold block">
-                      Omset
-                    </span>
-                    <span className="font-extrabold text-emerald-700">
-                      {formatRupiah(report.omset)}
-                    </span>
-                  </div>
-
-                  {report.ojolCount > 0 && (
+                  {/* Metrics Grid */}
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-semibold block flex items-center gap-1">
-                        <Bike className="h-2.5 w-2.5 text-red-500" />
-                        <span>Ojol</span>
+                      <span className="text-[10px] text-slate-400 font-semibold block">
+                        {metricMeta.qtyLabel}
                       </span>
-                      <span className="font-bold text-slate-800">
-                        {report.ojolCount} trip ({formatRupiah(report.ojolAmount)})
+                      <span className="font-extrabold text-slate-900">
+                        {effectiveQty} {metricMeta.qtyUnit}
                       </span>
                     </div>
-                  )}
 
-                  {report.jastipCount > 0 && (
                     <div>
-                      <span className="text-[10px] text-slate-400 font-semibold block flex items-center gap-1">
-                        <ShoppingBag className="h-2.5 w-2.5 text-blue-500" />
-                        <span>Jastip</span>
+                      <span className="text-[10px] text-slate-400 font-semibold block">
+                        {metricMeta.nominalLabel}
                       </span>
-                      <span className="font-bold text-slate-800">
-                        {report.jastipCount} item ({formatRupiah(report.jastipAmount)})
+                      <span className="font-extrabold text-emerald-700">
+                        {formatRupiah(effectiveOmset)}
                       </span>
                     </div>
-                  )}
-                </div>
+                  </div>
 
                 {/* Notes & Timestamp */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pt-1 text-[11px] text-slate-400 border-t border-slate-50">
@@ -254,9 +284,10 @@ export default async function CourierHistoryPage({
                     Dikirim: {report.createdAtFormatted}
                   </span>
                 </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

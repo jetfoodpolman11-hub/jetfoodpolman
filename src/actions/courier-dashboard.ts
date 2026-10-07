@@ -73,8 +73,16 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
   ]);
 
   const todayReports = reports.filter((r) => r.date === todayWita);
-  const totalOrders = todayReports.reduce((sum, r) => sum + r.orderCount, 0);
-  const totalOmset = todayReports.reduce((sum, r) => sum + r.omset, 0);
+  const totalOrders = todayReports.reduce(
+    (sum, r) =>
+      sum + (r.orderCount || 0) + (r.ojolCount || 0) + (r.jastipCount || 0),
+    0
+  );
+  const totalOmset = todayReports.reduce(
+    (sum, r) =>
+      sum + (r.omset || 0) + (r.ojolAmount || 0) + (r.jastipAmount || 0),
+    0
+  );
 
   return {
     courierName,
@@ -91,8 +99,9 @@ export async function getCourierDashboardData(): Promise<CourierDashboardData> {
       destDisplay: `${r.destination.villageName}, ${r.destination.districtName}`,
       routeDisplay: r.routeDisplay,
       packageName: r.packageTypeName,
-      orderCount: r.orderCount,
-      omset: r.omset,
+      orderCount:
+        (r.orderCount || 0) + (r.ojolCount || 0) + (r.jastipCount || 0),
+      omset: (r.omset || 0) + (r.ojolAmount || 0) + (r.jastipAmount || 0),
       ojolCount: r.ojolCount,
       jastipCount: r.jastipCount,
       createdAtFormatted: r.createdAtFormatted,
