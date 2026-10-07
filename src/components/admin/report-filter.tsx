@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Filter, RotateCcw, Calendar, User, Package, MapPin, Search } from "lucide-react";
@@ -35,6 +35,7 @@ export function ReportFilter({
   currentRouteQuery = "",
 }: ReportFilterProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [date, setDate] = useState(currentDate);
   const [courierId, setCourierId] = useState(currentCourierId);
@@ -49,6 +50,11 @@ export function ReportFilter({
     if (courierId && courierId !== "ALL") params.set("courierId", courierId);
     if (packageTypeId && packageTypeId !== "ALL") params.set("packageTypeId", packageTypeId);
     if (routeQuery && routeQuery.trim()) params.set("routeQuery", routeQuery.trim());
+
+    const currentPerPage = searchParams.get("perPage");
+    if (currentPerPage) {
+      params.set("perPage", currentPerPage);
+    }
 
     // Reset to page 1 on new filter
     params.set("page", "1");

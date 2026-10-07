@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   deleteDailyReportAction,
   type DailyReportRecord,
@@ -23,6 +23,7 @@ import {
   FileDown,
   Trash2,
   Loader2,
+  ListFilter,
 } from "lucide-react";
 
 interface ReportTableProps {
@@ -41,8 +42,30 @@ export function ReportTable({
   perPage,
 }: ReportTableProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const rawPerPageParam = searchParams.get("perPage") || "";
+  const isShowingAll =
+    rawPerPageParam.toUpperCase() === "ALL" || perPage >= 5000;
+  const selectValue = isShowingAll
+    ? "ALL"
+    : ["10", "25", "50", "100"].includes(String(perPage))
+      ? String(perPage)
+      : "10";
+
+  const handleChangePerPage = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", "1");
+    if (value === "10") {
+      params.delete("perPage");
+    } else {
+      params.set("perPage", value);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const handleDeleteReport = (item: DailyReportRecord) => {
     const confirmed = window.confirm(
@@ -70,9 +93,13 @@ export function ReportTable({
     const pageJastipAmt = reports.reduce((s, r) => s + r.jastipAmount, 0);
 
     return {
-      fileName: `Laporan_Operasional_JetFood_Halaman_${page}`,
+      fileName: isShowingAll
+        ? `Laporan_Operasional_JetFood_Semua_Baris`
+        : `Laporan_Operasional_JetFood_Halaman_${page}`,
       title: "Laporan Harian Operasional Kurir",
-      subtitle: `Halaman ${page} dari ${totalPages} — Total Data Terfilter: ${total} Laporan`,
+      subtitle: isShowingAll
+        ? `Menampilkan Semua Baris — Total Data Terfilter: ${total} Laporan`
+        : `Halaman ${page} dari ${totalPages} — Total Data Terfilter: ${total} Laporan`,
       summaryItems: [
         { label: "Total Laporan", value: `${reports.length} Laporan` },
         { label: "Volume Order Paket", value: `${pageOrders} Paket` },
@@ -99,7 +126,7 @@ export function ReportTable({
             "Catatan",
           ],
           rows: reports.map((item, idx) => [
-            (page - 1) * perPage + idx + 1,
+            isShowingAll ? idx + 1 : (page - 1) * perPage + idx + 1,
             formatWitaDateFull(item.date),
             item.courierCode || "JF-KURIR",
             item.courierName || "Kurir",
@@ -119,7 +146,7 @@ export function ReportTable({
             reports.length > 0
               ? [
                   "",
-                  "TOTAL HALAMAN INI",
+                  isShowingAll ? "TOTAL KESELURUHAN" : "TOTAL HALAMAN INI",
                   "",
                   "",
                   "",
@@ -138,11 +165,52 @@ export function ReportTable({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-      {/* Export Action Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50/60">
-        <div className="text-xs font-bold text-slate-700">
-          Daftar Laporan Operasional ({total} laporan)
+      {/* Export & Row Limit Action Toolbar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50/60">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="text-xs font-bold text-slate-700">
+            Daftar Laporan Operasional ({total} laporan)
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <ListFilter className="h-3.5 w-3.5 text-slate-400" />
+            <label htmlFor="toolbar-per-page" className="text-[11px] font-semibold text-slate-600">
+              Baris Tabel:
+            </label>
+            <select
+              id="toolbar-per-page"
+              value={selectValue}
+              onChange={(e) => handleChangePerPage(e.target.value)}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 focus:border-[#DC0000] focus:outline-none cursor-pointer shadow-2xs"
+            >
+              <option value="10">1 - 10 Baris</option>
+              <option value="25">25 Baris</option>
+              <option value="50">50 Baris</option>
+              <option value="100">100 Baris</option>
+              <option value="ALL">Semua Baris ({total})</option>
+            </select>
+          </div>
+
+          {!isShowingAll && total > perPage && (
+            <button
+              type="button"
+              onClick={() => handleChangePerPage("ALL")}
+              className="h-8 px-2.5 rounded-lg border border-red-200 bg-red-50 text-[#DC0000] hover:bg-red-100 text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              Lihat Semua Baris
+            </button>
+          )}
+          {isShowingAll && total > 10 && (
+            <button
+              type="button"
+              onClick={() => handleChangePerPage("10")}
+              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              Tampilkan 1 - 10
+            </button>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"

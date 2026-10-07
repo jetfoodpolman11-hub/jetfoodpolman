@@ -854,6 +854,19 @@ export interface AdminReportFilterOptions {
   perPage?: number;
 }
 
+export type ReportFeatureKey =
+  | "paket"
+  | "jastip"
+  | "ojol"
+  | "langsung"
+  | "random";
+
+export interface ReportFeatureSummaryItem {
+  reportCount: number;
+  orders: number;
+  omset: number;
+}
+
 export interface AdminReportSummary {
   totalReports: number;
   totalOrders: number;
@@ -862,6 +875,7 @@ export interface AdminReportSummary {
   totalOjolAmount: number;
   totalJastipCount: number;
   totalJastipAmount: number;
+  byFeature: Record<ReportFeatureKey, ReportFeatureSummaryItem>;
 }
 
 export interface PaginatedAdminDailyReports {
@@ -871,6 +885,62 @@ export interface PaginatedAdminDailyReports {
   perPage: number;
   totalPages: number;
   summary: AdminReportSummary;
+}
+
+function resolveReportFeatureKey(packageTypeName?: string): ReportFeatureKey {
+  const lower = (packageTypeName || "").toLowerCase().trim();
+  if (lower.includes("jastip")) return "jastip";
+  if (lower.includes("langsung")) return "langsung";
+  if (lower.includes("ojol")) return "ojol";
+  if (lower.includes("random")) return "random";
+  return "paket";
+}
+
+function createEmptyReportSummary(totalReports = 0): AdminReportSummary {
+  return {
+    totalReports,
+    totalOrders: 0,
+    totalOmset: 0,
+    totalOjolCount: 0,
+    totalOjolAmount: 0,
+    totalJastipCount: 0,
+    totalJastipAmount: 0,
+    byFeature: {
+      paket: { reportCount: 0, orders: 0, omset: 0 },
+      jastip: { reportCount: 0, orders: 0, omset: 0 },
+      ojol: { reportCount: 0, orders: 0, omset: 0 },
+      langsung: { reportCount: 0, orders: 0, omset: 0 },
+      random: { reportCount: 0, orders: 0, omset: 0 },
+    },
+  };
+}
+
+function buildAdminReportSummary(
+  records: DailyReportRecord[],
+  totalCount: number
+): AdminReportSummary {
+  const summary = createEmptyReportSummary(totalCount);
+
+  for (const r of records) {
+    const fKey = resolveReportFeatureKey(r.packageTypeName);
+    const effectiveOrders =
+      (r.orderCount || 0) + (r.ojolCount || 0) + (r.jastipCount || 0);
+    const effectiveOmset =
+      (r.omset || 0) + (r.ojolAmount || 0) + (r.jastipAmount || 0);
+
+    summary.totalOrders += effectiveOrders;
+    summary.totalOmset += effectiveOmset;
+    summary.totalOjolCount += r.ojolCount || 0;
+    summary.totalOjolAmount += r.ojolAmount || 0;
+    summary.totalJastipCount += r.jastipCount || 0;
+    summary.totalJastipAmount += r.jastipAmount || 0;
+
+    summary.byFeature[fKey].reportCount += 1;
+    summary.byFeature[fKey].orders += effectiveOrders;
+    summary.byFeature[fKey].omset += effectiveOmset;
+  }
+
+  return summary;
 }
 
 /**
@@ -929,30 +999,12 @@ export async function getAdminDailyReports(
       });
     }
 
-    const summary: AdminReportSummary = {
-      totalReports: filtered.length,
-      totalOrders: filtered.reduce((acc, r) => acc + (r.order_count || 0), 0),
-      totalOmset: filtered.reduce((acc, r) => acc + (r.omset || 0), 0),
-      totalOjolCount: filtered.reduce((acc, r) => acc + (r.ojol_count || 0), 0),
-      totalOjolAmount: filtered.reduce(
-        (acc, r) => acc + (r.ojol_amount || 0),
-        0
-      ),
-      totalJastipCount: filtered.reduce(
-        (acc, r) => acc + (r.jastip_count || 0),
-        0
-      ),
-      totalJastipAmount: filtered.reduce(
-        (acc, r) => acc + (r.jastip_amount || 0),
-        0
-      ),
-    };
-
-    const total = filtered.length;
+    const allMapped = filtered.map((e) => mapMockToRecord(e));
+    const total = allMapped.length;
+    const summary = buildAdminReportSummary(allMapped, total);
     const totalPages = Math.ceil(total / perPage) || 1;
     const offset = (page - 1) * perPage;
-    const paged = filtered.slice(offset, offset + perPage);
-    const reports = paged.map((e) => mapMockToRecord(e));
+    const reports = allMapped.slice(offset, offset + perPage);
 
     return {
       reports,
@@ -1011,8 +1063,7 @@ export async function getAdminDailyReports(
     );
   }
 
-  const offset = (page - 1) * perPage;
-  query = query.range(offset, offset + perPage - 1);
+  query = query.range(0, 4999);
 
   const { data, count, error } = await query;
 
@@ -1032,22 +1083,14 @@ export async function getAdminDailyReports(
       page,
       perPage,
       totalPages: 1,
-      summary: {
-        totalReports: 0,
-        totalOrders: 0,
-        totalOmset: 0,
-        totalOjolCount: 0,
-        totalOjolAmount: 0,
-        totalJastipCount: 0,
-        totalJastipAmount: 0,
-      },
+      summary: createEmptyReportSummary(0),
     };
   }
 
   const total = count ?? data.length;
   const totalPages = Math.ceil(total / perPage) || 1;
 
-  const reports: DailyReportRecord[] = data.map((item) => {
+  const allReports: DailyReportRecord[] = data.map((item) => {
     const pkg = Array.isArray(item.package_types)
       ? item.package_types[0]
       : item.package_types;
@@ -1107,15 +1150,9 @@ export async function getAdminDailyReports(
     };
   });
 
-  const summary: AdminReportSummary = {
-    totalReports: total,
-    totalOrders: reports.reduce((acc, r) => acc + r.orderCount, 0),
-    totalOmset: reports.reduce((acc, r) => acc + r.omset, 0),
-    totalOjolCount: reports.reduce((acc, r) => acc + r.ojolCount, 0),
-    totalOjolAmount: reports.reduce((acc, r) => acc + r.ojolAmount, 0),
-    totalJastipCount: reports.reduce((acc, r) => acc + r.jastipCount, 0),
-    totalJastipAmount: reports.reduce((acc, r) => acc + r.jastipAmount, 0),
-  };
+  const summary = buildAdminReportSummary(allReports, total);
+  const offset = (page - 1) * perPage;
+  const reports = allReports.slice(offset, offset + perPage);
 
   return {
     reports,
