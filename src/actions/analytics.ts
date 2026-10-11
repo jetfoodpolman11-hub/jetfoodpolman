@@ -264,7 +264,7 @@ export async function getOperationalAnalytics(
   const [couriers, attendanceList, reportsResult] = await Promise.all([
     getCouriers(),
     getAdminAttendanceList({ startDate, endDate }),
-    getAdminDailyReports({ startDate, endDate, page: 1, perPage: 5000 }),
+    getAdminDailyReports({ startDate, endDate, page: 1, perPage: 100000 }),
   ]);
 
   const allPeriodReports = reportsResult.reports.filter(

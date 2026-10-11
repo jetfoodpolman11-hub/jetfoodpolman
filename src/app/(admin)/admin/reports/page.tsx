@@ -53,8 +53,8 @@ export default async function AdminReportsPage({
   const rawPerPage = (params.perPage || "10").trim().toUpperCase();
   const requestedPerPage =
     rawPerPage === "ALL"
-      ? 5000
-      : Math.max(1, Math.min(5000, parseInt(rawPerPage, 10) || 10));
+      ? 100000
+      : Math.max(1, Math.min(100000, parseInt(rawPerPage, 10) || 10));
 
   const [couriers, packageTypes, paginatedData] = await Promise.all([
     getCouriers(),

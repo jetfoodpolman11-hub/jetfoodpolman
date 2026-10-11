@@ -635,22 +635,33 @@ export async function getCourierDailyReports(options?: {
   }
 
   const supabase = createAdminClient();
+  const BATCH_SIZE = 1000;
 
-  let query = supabase
-    .from("daily_reports")
-    .select(`
-      *,
-      package_types:package_type_id ( name )
-    `)
-    .eq("courier_id", courierId)
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
+  const buildCourierQuery = () => {
+    let q = supabase
+      .from("daily_reports")
+      .select(
+        `
+        *,
+        package_types:package_type_id ( name )
+      `,
+        { count: "exact" }
+      )
+      .eq("courier_id", courierId)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
-  if (options?.date) {
-    query = query.eq("date", options.date);
-  }
+    if (options?.date) {
+      q = q.eq("date", options.date);
+    }
+    return q;
+  };
 
-  const { data, error } = await query;
+  const { data: firstBatch, count, error } = await buildCourierQuery().range(
+    0,
+    BATCH_SIZE - 1
+  );
 
   if (error && error.message.includes("schema cache")) {
     const cloudList = await readCloudJson<MockReportEntry[]>(
@@ -664,14 +675,36 @@ export async function getCourierDailyReports(options?: {
     return filtered.map((e) => mapMockToRecord(e, courierId));
   }
 
-  if (error || !data) {
+  if (error || !firstBatch) {
     console.error("Error fetching courier daily reports:", error);
     return [];
   }
 
+  const allRawRows = [...firstBatch];
+  const totalCount = count ?? allRawRows.length;
+
+  if (totalCount > BATCH_SIZE && firstBatch.length === BATCH_SIZE) {
+    const remainingPromises = [];
+    for (
+      let offsetStart = BATCH_SIZE;
+      offsetStart < totalCount;
+      offsetStart += BATCH_SIZE
+    ) {
+      remainingPromises.push(
+        buildCourierQuery().range(offsetStart, offsetStart + BATCH_SIZE - 1)
+      );
+    }
+    const remainingResults = await Promise.all(remainingPromises);
+    for (const res of remainingResults) {
+      if (res.data && res.data.length > 0) {
+        allRawRows.push(...res.data);
+      }
+    }
+  }
+
   const todayWita = getWitaDateString();
 
-  return data.map((item) => {
+  return allRawRows.map((item) => {
     const pkg = Array.isArray(item.package_types)
       ? item.package_types[0]
       : item.package_types;
@@ -953,7 +986,7 @@ export async function getAdminDailyReports(
   await requireAdmin();
 
   const page = Math.max(1, options?.page || 1);
-  const perPage = Math.max(1, Math.min(5000, options?.perPage || 10));
+  const perPage = Math.max(1, Math.min(100000, options?.perPage || 10));
   const date =
     options?.date && options.date !== "ALL" ? options.date : undefined;
   const startDate =
@@ -1025,47 +1058,53 @@ export async function getAdminDailyReports(
   }
 
   const supabase = createAdminClient();
+  const BATCH_SIZE = 1000;
 
-  let query = supabase
-    .from("daily_reports")
-    .select(
-      `
-      *,
-      package_types:package_type_id ( name ),
-      couriers:courier_id (
-        courier_code,
-        profiles:user_id ( full_name )
+  const buildAdminQuery = () => {
+    let q = supabase
+      .from("daily_reports")
+      .select(
+        `
+        *,
+        package_types:package_type_id ( name ),
+        couriers:courier_id (
+          courier_code,
+          profiles:user_id ( full_name )
+        )
+      `,
+        { count: "exact" }
       )
-    `,
-      { count: "exact" }
-    )
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
-  if (date) {
-    query = query.eq("date", date);
-  }
-  if (startDate) {
-    query = query.gte("date", startDate);
-  }
-  if (endDate) {
-    query = query.lte("date", endDate);
-  }
-  if (courierId) {
-    query = query.eq("courier_id", courierId);
-  }
-  if (packageTypeId) {
-    query = query.eq("package_type_id", packageTypeId);
-  }
-  if (routeQuery) {
-    query = query.or(
-      `origin_village_name.ilike.%${routeQuery}%,origin_district_name.ilike.%${routeQuery}%,origin_regency_name.ilike.%${routeQuery}%,dest_village_name.ilike.%${routeQuery}%,dest_district_name.ilike.%${routeQuery}%,dest_regency_name.ilike.%${routeQuery}%`
-    );
-  }
+    if (date) {
+      q = q.eq("date", date);
+    }
+    if (startDate) {
+      q = q.gte("date", startDate);
+    }
+    if (endDate) {
+      q = q.lte("date", endDate);
+    }
+    if (courierId) {
+      q = q.eq("courier_id", courierId);
+    }
+    if (packageTypeId) {
+      q = q.eq("package_type_id", packageTypeId);
+    }
+    if (routeQuery) {
+      q = q.or(
+        `origin_village_name.ilike.%${routeQuery}%,origin_district_name.ilike.%${routeQuery}%,origin_regency_name.ilike.%${routeQuery}%,dest_village_name.ilike.%${routeQuery}%,dest_district_name.ilike.%${routeQuery}%,dest_regency_name.ilike.%${routeQuery}%`
+      );
+    }
+    return q;
+  };
 
-  query = query.range(0, 4999);
-
-  const { data, count, error } = await query;
+  const { data: firstBatch, count, error } = await buildAdminQuery().range(
+    0,
+    BATCH_SIZE - 1
+  );
 
   if (error && error.message.includes("schema cache")) {
     const cloudList = await readCloudJson<MockReportEntry[]>(
@@ -1075,7 +1114,7 @@ export async function getAdminDailyReports(
     return filterMemoryList(cloudList);
   }
 
-  if (error || !data) {
+  if (error || !firstBatch) {
     console.error("Error fetching admin daily reports:", error);
     return {
       reports: [],
@@ -1087,10 +1126,32 @@ export async function getAdminDailyReports(
     };
   }
 
-  const total = count ?? data.length;
+  const allRawRows = [...firstBatch];
+  const totalCount = count ?? allRawRows.length;
+
+  if (totalCount > BATCH_SIZE && firstBatch.length === BATCH_SIZE) {
+    const remainingPromises = [];
+    for (
+      let offsetStart = BATCH_SIZE;
+      offsetStart < totalCount;
+      offsetStart += BATCH_SIZE
+    ) {
+      remainingPromises.push(
+        buildAdminQuery().range(offsetStart, offsetStart + BATCH_SIZE - 1)
+      );
+    }
+    const remainingResults = await Promise.all(remainingPromises);
+    for (const res of remainingResults) {
+      if (res.data && res.data.length > 0) {
+        allRawRows.push(...res.data);
+      }
+    }
+  }
+
+  const total = Math.max(totalCount, allRawRows.length);
   const totalPages = Math.ceil(total / perPage) || 1;
 
-  const allReports: DailyReportRecord[] = data.map((item) => {
+  const allReports: DailyReportRecord[] = allRawRows.map((item) => {
     const pkg = Array.isArray(item.package_types)
       ? item.package_types[0]
       : item.package_types;

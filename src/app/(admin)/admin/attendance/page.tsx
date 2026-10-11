@@ -17,7 +17,12 @@ export const metadata = {
 export default async function AdminAttendancePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ date?: string; courierId?: string; page?: string }>;
+  searchParams?: Promise<{
+    date?: string;
+    courierId?: string;
+    page?: string;
+    perPage?: string;
+  }>;
 }) {
   await requireAdmin();
 
@@ -26,6 +31,11 @@ export default async function AdminAttendancePage({
   const selectedDate = params.date || todayWita;
   const selectedCourierId = params.courierId || "ALL";
   const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
+  const rawPerPage = (params.perPage || "10").trim().toUpperCase();
+  const requestedPerPage =
+    rawPerPage === "ALL"
+      ? 100000
+      : Math.max(1, Math.min(100000, parseInt(rawPerPage, 10) || 10));
 
   const [couriers, paginatedData] = await Promise.all([
     getCouriers(),
@@ -33,7 +43,7 @@ export default async function AdminAttendancePage({
       date: selectedDate,
       courierId: selectedCourierId,
       page: currentPage,
-      perPage: 10,
+      perPage: requestedPerPage,
     }),
   ]);
 
